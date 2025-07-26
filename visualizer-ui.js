@@ -9,12 +9,12 @@ class VisualizerUI {
         this.isFullscreen = false;
         this.isInitialized = false;
         this.container = null;
-        this.currentMode = 'waveform';
+        this.currentMode = 'bubbles';
         
         this.modes = {
-            'waveform': 'Waveform',
-            'frequency': 'Frequency Bars',
-            'hybrid': 'Hybrid View'
+            'bubbles': 'Bulles & Vagues',
+            'minimal': 'Mode Minimal',
+            'intense': 'Mode Intense'
         };
     }
 
@@ -86,7 +86,7 @@ class VisualizerUI {
                         🔍
                     </button>
                     <button class="visualizer-btn" id="mode-btn" onclick="visualizerUI.cycleMode()">
-                        Waveform
+                        Bulles & Vagues
                     </button>
                     <button class="visualizer-btn" id="fullscreen-btn" onclick="visualizerUI.toggleFullscreen()">
                         ⛶

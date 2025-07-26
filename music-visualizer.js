@@ -17,10 +17,19 @@ class MusicVisualizer {
         this.playbackState = null;
         
         // Animation parameters
-        this.frequencyData = new Array(64).fill(0);
-        this.waveformData = new Array(128).fill(0);
         this.time = 0;
         this.amplitude = 0;
+        
+        // Beat detection and percussion bubble system
+        this.beatThreshold = 0.7;
+        this.lastBeatTime = 0;
+        this.beatIntensity = 0;
+        this.bubbles = [];
+        
+        // Flowing wave system for melody
+        this.wavePoints = [];
+        this.melodyIntensity = 0;
+        this.bassIntensity = 0;
         
         // Performance monitoring
         this.lastFrameTime = performance.now();
@@ -34,6 +43,9 @@ class MusicVisualizer {
             accent: '#ff6b6b',
             background: '#121212'
         };
+        
+        // Visualization mode
+        this.visualizationMode = 'bubbles';
         
         this.setupCanvas();
         this.initializeVisuals();
@@ -265,154 +277,286 @@ class MusicVisualizer {
     updateVisualization() {
         this.time += 0.016; // ~60fps
 
-        // Generate simulated audio data based on playback state and features
         if (this.playbackState?.is_playing && this.currentTrack) {
             const progress = this.playbackState.progress_ms / this.currentTrack.duration_ms;
             
-            // Use audio features if available, otherwise use smart fallbacks
+            // Get audio features (real or fallback)
             let energy, danceability, tempo, valence;
             
             if (this.audioFeatures) {
                 ({ energy, danceability, tempo, valence } = this.audioFeatures);
                 
                 if (this.audioFeatures.fallback) {
-                    console.log('🎨 Using fallback visualization mode');
-                    // Add some variation to fallback values based on song progress
+                    // Dynamic fallback values
                     energy = 0.5 + Math.sin(progress * Math.PI * 4) * 0.3;
                     danceability = 0.4 + Math.sin(progress * Math.PI * 2) * 0.3;
                     tempo = 120 + Math.sin(this.time * 0.1) * 20;
                     valence = 0.5 + Math.sin(progress * Math.PI) * 0.3;
                 }
             } else {
-                // Fully dynamic fallback based on song timing
                 energy = 0.5 + Math.sin(progress * Math.PI * 3) * 0.4;
                 danceability = 0.4 + Math.cos(progress * Math.PI * 2) * 0.4;
                 tempo = 120 + Math.sin(this.time * 0.05) * 30;
                 valence = 0.3 + Math.sin(progress * Math.PI) * 0.5;
             }
             
-            // Calculate intensity based on song progress and features
-            const baseIntensity = energy * 0.8 + danceability * 0.6;
-            const tempoFactor = Math.min(tempo / 120, 2); // Normalize around 120 BPM
-            const progressIntensity = Math.sin(progress * Math.PI) * 0.4; // Peak in middle
+            const tempoFactor = tempo / 120;
             
-            this.amplitude = Math.max(0.1, baseIntensity + progressIntensity);
+            // 🥁 BEAT DETECTION & BUBBLE SYSTEM
+            this.updateBeatDetection(energy, danceability, tempoFactor);
             
-            // Generate frequency bars with more dynamic behavior
-            for (let i = 0; i < this.frequencyData.length; i++) {
-                const frequency = i / this.frequencyData.length;
-                const bassBoost = frequency < 0.1 ? 2.5 : 1;
-                const midBoost = frequency > 0.1 && frequency < 0.6 ? 1.8 : 1;
-                const trebleBoost = frequency > 0.8 ? 1.3 : 1;
-                
-                // Create more complex wave patterns
-                const wave1 = Math.sin(this.time * tempoFactor + i * 0.15) * this.amplitude;
-                const wave2 = Math.sin(this.time * tempoFactor * 0.7 + i * 0.1) * this.amplitude * 0.5;
-                const noise = (Math.random() - 0.5) * 0.15 * energy;
-                
-                const combinedWave = (wave1 + wave2 + noise) * bassBoost * midBoost * trebleBoost;
-                
-                this.frequencyData[i] = Math.max(0.05, 
-                    Math.min(1, combinedWave * 0.4 + 0.15)
-                );
-            }
+            // 🌊 FLOWING WAVE SYSTEM  
+            this.updateFlowingWaves(valence, energy, tempoFactor);
             
-            // Generate waveform with more variation
-            for (let i = 0; i < this.waveformData.length; i++) {
-                const phase1 = (this.time * tempoFactor * 2) + (i / this.waveformData.length) * Math.PI * 2;
-                const phase2 = (this.time * tempoFactor * 1.3) + (i / this.waveformData.length) * Math.PI * 3;
-                
-                const wave1 = Math.sin(phase1) * this.amplitude * valence;
-                const wave2 = Math.sin(phase2) * this.amplitude * energy * 0.3;
-                
-                this.waveformData[i] = (wave1 + wave2) * 0.4;
-            }
+            // Update global amplitude for other effects
+            this.amplitude = Math.max(0.1, energy * 0.8 + danceability * 0.6);
+            
         } else {
-            // Idle animation when not playing
-            this.amplitude *= 0.95; // Decay
-            for (let i = 0; i < this.frequencyData.length; i++) {
-                this.frequencyData[i] *= 0.98;
-                this.frequencyData[i] += Math.random() * 0.02;
-            }
+            // Idle state - decay all effects
+            this.beatIntensity *= 0.95;
+            this.melodyIntensity *= 0.98;
+            this.bassIntensity *= 0.97;
+            this.amplitude *= 0.95;
             
-            // Gentle waveform when idle
-            for (let i = 0; i < this.waveformData.length; i++) {
-                this.waveformData[i] *= 0.99;
-            }
+            // Remove old bubbles
+            this.bubbles = this.bubbles.filter(bubble => bubble.life > 0.1);
+        }
+        
+        // Update existing bubbles
+        this.updateBubbles();
+    }
+
+    updateBeatDetection(energy, danceability, tempoFactor) {
+        // Simulate beat timing based on tempo
+        const beatInterval = (60 / (tempoFactor * 120)) * 1000; // ms between beats
+        const timeSinceLastBeat = Date.now() - this.lastBeatTime;
+        
+        // Calculate beat probability
+        const beatPattern = Math.sin(this.time * tempoFactor * 8) * 0.5 + 0.5;
+        const energyBoost = energy * danceability;
+        const beatProbability = (beatPattern * energyBoost + Math.random() * 0.3);
+        
+        // Trigger beat if conditions are met
+        if (timeSinceLastBeat > beatInterval * 0.8 && beatProbability > this.beatThreshold) {
+            this.triggerBeat(energyBoost);
+            this.lastBeatTime = Date.now();
+        }
+        
+        // Update beat intensity (decays over time)
+        this.beatIntensity *= 0.92;
+    }
+
+    triggerBeat(intensity) {
+        this.beatIntensity = Math.min(1, intensity * 1.5);
+        
+        // Only create bubbles in certain modes
+        if (this.visualizationMode === 'minimal') return;
+        
+        // Create new bubble at random position
+        const { width, height } = this.canvas.getBoundingClientRect();
+        
+        const bubbleCount = this.visualizationMode === 'intense' ? 2 : 1;
+        const maxBubbles = this.visualizationMode === 'intense' ? 20 : 12;
+        
+        for (let i = 0; i < bubbleCount; i++) {
+            const bubble = {
+                x: Math.random() * width,
+                y: height * 0.3 + Math.random() * height * 0.4, // Middle area
+                size: 20 + intensity * (this.visualizationMode === 'intense' ? 100 : 80),
+                maxSize: 30 + intensity * (this.visualizationMode === 'intense' ? 150 : 120),
+                life: 1.0,
+                intensity: intensity,
+                hue: Math.random() * 60 + (this.visualizationMode === 'intense' ? 0 : 100), // More variety in intense mode
+                vel: {
+                    x: (Math.random() - 0.5) * (this.visualizationMode === 'intense' ? 4 : 2),
+                    y: -Math.random() * 3 - 1
+                }
+            };
+            
+            this.bubbles.push(bubble);
+        }
+        
+        // Limit number of bubbles
+        if (this.bubbles.length > maxBubbles) {
+            this.bubbles.splice(0, this.bubbles.length - maxBubbles);
+        }
+    }
+
+    updateBubbles() {
+        this.bubbles.forEach(bubble => {
+            // Animate bubble growth and movement
+            bubble.size = Math.min(bubble.maxSize, bubble.size + 2);
+            bubble.x += bubble.vel.x;
+            bubble.y += bubble.vel.y;
+            bubble.life *= 0.98; // Fade out
+            
+            // Apply some physics
+            bubble.vel.y += 0.1; // Gravity
+            bubble.vel.x *= 0.99; // Air resistance
+        });
+        
+        // Remove dead bubbles
+        this.bubbles = this.bubbles.filter(bubble => bubble.life > 0.05);
+    }
+
+    updateFlowingWaves(valence, energy, tempoFactor) {
+        // Update melody intensity (smoother than beats)
+        this.melodyIntensity = valence * 0.6 + energy * 0.4;
+        this.bassIntensity = energy * 0.8;
+        
+        // Generate flowing wave points
+        const numPoints = 80;
+        this.wavePoints = [];
+        
+        for (let i = 0; i <= numPoints; i++) {
+            const x = (i / numPoints);
+            
+            // Multiple sine waves for complex melody representation
+            const wave1 = Math.sin(x * Math.PI * 4 + this.time * tempoFactor * 3) * this.melodyIntensity;
+            const wave2 = Math.sin(x * Math.PI * 6 + this.time * tempoFactor * 2) * this.melodyIntensity * 0.5;
+            const wave3 = Math.sin(x * Math.PI * 8 + this.time * tempoFactor * 4) * this.melodyIntensity * 0.3;
+            
+            // Bass wave (slower, deeper)
+            const bassWave = Math.sin(x * Math.PI * 2 + this.time * tempoFactor) * this.bassIntensity * 0.8;
+            
+            const y = (wave1 + wave2 + wave3 + bassWave) * 60;
+            
+            this.wavePoints.push({ x: x, y: y });
         }
     }
 
     render() {
         const { width, height } = this.canvas.getBoundingClientRect();
         
-        // Clear canvas with gradient background
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0, this.colors.background);
-        gradient.addColorStop(1, '#1a1a1a');
+        // Clear canvas with beautiful gradient background
+        this.renderBackground(width, height);
         
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, width, height);
+        // 🌊 Render flowing waves (melody)
+        this.renderFlowingWaves(width, height);
         
-        // Render frequency bars
-        this.renderFrequencyBars(width, height);
+        // 🫧 Render percussion bubbles
+        this.renderBubbles(width, height);
         
-        // Render central waveform
-        this.renderWaveform(width, height);
-        
-        // Render track info overlay
-        this.renderTrackInfo(width, height);
+        // 🎵 Render minimal track info
+        this.renderMinimalTrackInfo(width, height);
         
         // Render performance info (debug mode)
-        if (this.frameCount % 120 === 0) { // Update every 2 seconds
+        if (this.frameCount % 120 === 0) {
             this.renderPerformanceInfo(width, height);
         }
     }
 
-    renderFrequencyBars(width, height) {
-        const barWidth = width / this.frequencyData.length;
-        const maxBarHeight = height * 0.6;
+    renderBackground(width, height) {
+        // Beautiful animated gradient background
+        const time = this.time * 0.5;
         
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = this.colors.primary;
+        // Create radial gradient that shifts with music
+        const centerX = width * 0.5 + Math.sin(time) * 100;
+        const centerY = height * 0.5 + Math.cos(time * 0.7) * 50;
         
-        for (let i = 0; i < this.frequencyData.length; i++) {
-            const barHeight = this.frequencyData[i] * maxBarHeight;
-            const x = i * barWidth;
-            const y = height - barHeight;
-            
-            // Create gradient for each bar
-            const barGradient = this.ctx.createLinearGradient(0, y, 0, height);
-            barGradient.addColorStop(0, this.colors.secondary);
-            barGradient.addColorStop(0.5, this.colors.primary);
-            barGradient.addColorStop(1, this.colors.accent);
-            
-            this.ctx.fillStyle = barGradient;
-            this.ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
-        }
+        const gradient = this.ctx.createRadialGradient(
+            centerX, centerY, 0,
+            centerX, centerY, Math.max(width, height) * 0.8
+        );
         
-        this.ctx.shadowBlur = 0;
+        // Dynamic colors based on music intensity
+        const hue1 = 240 + this.amplitude * 60; // Blue to purple
+        const hue2 = 200 + this.melodyIntensity * 40; // Blue to cyan
+        
+        gradient.addColorStop(0, `hsla(${hue1}, 70%, 20%, 0.8)`);
+        gradient.addColorStop(0.5, `hsla(${hue2}, 50%, 15%, 0.6)`);
+        gradient.addColorStop(1, `hsla(220, 30%, 8%, 1)`);
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(0, 0, width, height);
+        
+        // Add subtle moving particles in background
+        this.renderBackgroundParticles(width, height);
     }
 
-    renderWaveform(width, height) {
-        const centerY = height / 2;
-        const waveHeight = height * 0.2;
+    renderBackgroundParticles(width, height) {
+        const numParticles = 20;
         
-        this.ctx.strokeStyle = this.colors.primary;
-        this.ctx.lineWidth = 3;
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.1 + this.melodyIntensity * 0.2;
+        
+        for (let i = 0; i < numParticles; i++) {
+            const x = (Math.sin(this.time * 0.2 + i) * 0.5 + 0.5) * width;
+            const y = (Math.cos(this.time * 0.15 + i) * 0.5 + 0.5) * height;
+            const size = 2 + Math.sin(this.time + i) * 3;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, size, 0, Math.PI * 2);
+            this.ctx.fillStyle = `hsla(${180 + i * 10}, 60%, 60%, 0.5)`;
+            this.ctx.fill();
+        }
+        
+        this.ctx.restore();
+    }
+
+    renderFlowingWaves(width, height) {
+        if (this.wavePoints.length === 0) return;
+        
+        const centerY = height * 0.5;
+        
+        this.ctx.save();
+        
+        // Render different wave styles based on mode
+        switch (this.visualizationMode) {
+            case 'minimal':
+                // Single, clean wave
+                this.renderWaveLayer(width, height, centerY, 0.6, 2, 'hsla(200, 50%, 60%, 0.8)');
+                break;
+                
+            case 'intense':
+                // Multiple chaotic waves
+                this.renderWaveLayer(width, height, centerY, 1.2, 6, 'hsla(0, 80%, 50%, 0.7)');
+                this.renderWaveLayer(width, height, centerY, 0.9, 4, 'hsla(60, 70%, 60%, 0.5)');
+                this.renderWaveLayer(width, height, centerY, 0.6, 3, 'hsla(180, 60%, 70%, 0.4)');
+                this.renderWaveLayer(width, height, centerY, 0.3, 2, 'hsla(300, 50%, 80%, 0.3)');
+                break;
+                
+            case 'bubbles':
+            default:
+                // Balanced wave layers
+                this.renderWaveLayer(width, height, centerY, 0.8, 4, 'hsla(180, 70%, 50%, 0.6)');
+                this.renderWaveLayer(width, height, centerY, 0.6, 3, 'hsla(200, 60%, 60%, 0.4)');
+                this.renderWaveLayer(width, height, centerY, 0.4, 2, 'hsla(220, 50%, 70%, 0.3)');
+                break;
+        }
+        
+        this.ctx.restore();
+    }
+
+    renderWaveLayer(width, height, centerY, intensityMul, lineWidth, color) {
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = lineWidth;
         this.ctx.lineCap = 'round';
-        this.ctx.shadowBlur = 10;
-        this.ctx.shadowColor = this.colors.primary;
+        this.ctx.lineJoin = 'round';
+        
+        // Add glow effect
+        this.ctx.shadowBlur = 15;
+        this.ctx.shadowColor = color;
         
         this.ctx.beginPath();
         
-        for (let i = 0; i < this.waveformData.length; i++) {
-            const x = (i / this.waveformData.length) * width;
-            const y = centerY + this.waveformData[i] * waveHeight;
+        for (let i = 0; i < this.wavePoints.length; i++) {
+            const point = this.wavePoints[i];
+            const x = point.x * width;
+            const y = centerY + point.y * intensityMul;
             
             if (i === 0) {
                 this.ctx.moveTo(x, y);
             } else {
-                this.ctx.lineTo(x, y);
+                // Use bezier curves for smooth flowing effect
+                const prevPoint = this.wavePoints[i - 1];
+                const prevX = prevPoint.x * width;
+                const prevY = centerY + prevPoint.y * intensityMul;
+                
+                const cpX = (x + prevX) / 2;
+                const cpY = (y + prevY) / 2;
+                
+                this.ctx.quadraticCurveTo(prevX, prevY, cpX, cpY);
             }
         }
         
@@ -420,34 +564,72 @@ class MusicVisualizer {
         this.ctx.shadowBlur = 0;
     }
 
-    renderTrackInfo(width, height) {
+    renderBubbles(width, height) {
+        this.bubbles.forEach(bubble => {
+            this.ctx.save();
+            
+            // Set opacity based on bubble life
+            this.ctx.globalAlpha = bubble.life * 0.8;
+            
+            // Create radial gradient for bubble
+            const gradient = this.ctx.createRadialGradient(
+                bubble.x, bubble.y, 0,
+                bubble.x, bubble.y, bubble.size
+            );
+            
+            const hue = bubble.hue + this.time * 20;
+            gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.8)`);
+            gradient.addColorStop(0.7, `hsla(${hue + 20}, 60%, 50%, 0.4)`);
+            gradient.addColorStop(1, `hsla(${hue + 40}, 50%, 40%, 0)`);
+            
+            // Draw bubble with glow
+            this.ctx.shadowBlur = 20;
+            this.ctx.shadowColor = `hsla(${hue}, 70%, 60%, 0.6)`;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+            
+            // Add inner highlight
+            this.ctx.shadowBlur = 0;
+            this.ctx.beginPath();
+            this.ctx.arc(
+                bubble.x - bubble.size * 0.3,
+                bubble.y - bubble.size * 0.3,
+                bubble.size * 0.2,
+                0, Math.PI * 2
+            );
+            this.ctx.fillStyle = `hsla(${hue}, 30%, 80%, ${bubble.life * 0.5})`;
+            this.ctx.fill();
+            
+            this.ctx.restore();
+        });
+    }
+
+    renderMinimalTrackInfo(width, height) {
         if (!this.currentTrack) return;
         
-        // Semi-transparent overlay
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(20, 20, width - 40, 80);
+        this.ctx.save();
+        
+        // Subtle background for text
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.fillRect(20, height - 80, width - 40, 60);
         
         // Track name
-        this.ctx.fillStyle = this.colors.primary;
-        this.ctx.font = 'bold 18px Inter, sans-serif';
-        this.ctx.fillText(this.currentTrack.name, 40, 50);
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.font = 'bold 16px Inter, sans-serif';
+        this.ctx.fillText(this.currentTrack.name, 30, height - 50);
         
         // Artist name
-        this.ctx.fillStyle = '#b3b3b3';
-        this.ctx.font = '14px Inter, sans-serif';
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        this.ctx.font = '12px Inter, sans-serif';
         const artists = this.currentTrack.artists.map(a => a.name).join(', ');
-        this.ctx.fillText(artists, 40, 75);
+        this.ctx.fillText(artists, 30, height - 30);
         
-        // Audio features (if available)
-        if (this.audioFeatures) {
-            this.ctx.fillStyle = this.audioFeatures.fallback ? '#ffc107' : this.colors.secondary;
-            this.ctx.font = '12px Inter, sans-serif';
-            const features = `Energy: ${Math.round(this.audioFeatures.energy * 100)}% | ` +
-                           `Tempo: ${Math.round(this.audioFeatures.tempo)} BPM` +
-                           (this.audioFeatures.fallback ? ' (Simulé)' : '');
-            this.ctx.fillText(features, 40, 90);
-        }
+        this.ctx.restore();
     }
+
 
     renderPerformanceInfo(width, height) {
         // Only show in development or debug mode
