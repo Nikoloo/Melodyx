@@ -6,6 +6,7 @@
     <title>Melodyx - Application</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="playlist-selector.css">
+    <link rel="stylesheet" href="music-visualizer.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -197,7 +198,6 @@
             <div class="features-grid-app">
                 <div class="feature-app">
                     <h3>🔀 Vrai mode aléatoire</h3>
-                    <p>Algorithme Fisher-Yates pour un mélange vraiment aléatoire de vos titres likés</p>
                     <div style="margin: 1rem 0; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border: 1px solid rgba(29, 185, 84, 0.3);">
                         <small style="color: var(--primary-color); font-weight: 600;">
                             ✓ 100% aléatoire (pas de biais)<br>
@@ -216,11 +216,7 @@
                     <div class="status-badge status-coming-soon">Bientôt disponible</div>
                 </div>
                 
-                <div class="feature-app">
-                    <h3>🌈 Visualisations musicales</h3>
-                    <p>Animations qui réagissent en temps réel à votre musique</p>
-                    <div class="status-badge status-beta">En développement</div>
-                </div>
+                <!-- Visualizer will be inserted here by visualizer-ui.js -->
                 
                 <div class="feature-app">
                     <h3>📊 Rewind mensuel</h3>
@@ -234,6 +230,8 @@
     <script src="spotify-auth.js"></script>
     <script src="true-random.js"></script>
     <script src="playlist-selector.js"></script>
+    <script src="music-visualizer.js"></script>
+    <script src="visualizer-ui.js"></script>
     <script>
         // Vérifier l'authentification au chargement
         document.addEventListener('DOMContentLoaded', async () => {

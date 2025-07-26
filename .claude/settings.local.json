@@ -6,7 +6,8 @@
       "Bash(git commit:*)",
       "Bash(git remote add:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:nikoloo.github.io)"
+      "WebFetch(domain:nikoloo.github.io)",
+      "Bash(python:*)"
     ],
     "deny": []
   }
