@@ -2,8 +2,11 @@
 class PlaylistSelector {
     constructor() {
         this.playlists = [];
+        this.filteredPlaylists = [];
         this.isLoading = false;
         this.selectedPlaylist = null;
+        this.currentSort = 'default'; // default, pinned, alphabetical, recent, count
+        this.pinnedPlaylists = this.getPinnedPlaylists();
     }
 
     // Récupérer toutes les playlists de l'utilisateur
@@ -42,7 +45,9 @@ class PlaylistSelector {
                     trackCount: playlist.tracks.total,
                     owner: playlist.owner.display_name,
                     isOwner: playlist.owner.id === playlist.collaborative || playlist.owner.id,
-                    uri: playlist.uri
+                    uri: playlist.uri,
+                    isPinned: this.pinnedPlaylists.includes(playlist.id),
+                    addedAt: new Date(playlist.tracks.href) // Approximation pour le tri par date
                 }));
 
                 allPlaylists = allPlaylists.concat(playlists);
@@ -58,10 +63,14 @@ class PlaylistSelector {
                 trackCount: 'Auto',
                 owner: 'Vous',
                 isOwner: true,
-                uri: null
+                uri: null,
+                isPinned: true, // Toujours épinglé
+                addedAt: new Date()
             });
 
             this.playlists = allPlaylists;
+            this.filteredPlaylists = [...allPlaylists];
+            this.applySorting();
             return allPlaylists;
 
         } catch (error) {
@@ -137,6 +146,22 @@ class PlaylistSelector {
                         <button class="close-btn-3d" onclick="playlistSelector.closeSelector()">×</button>
                     </div>
                     
+                    <div class="modal-3d-toolbar">
+                        <div class="sort-controls">
+                            <label class="sort-label">📋 Trier par:</label>
+                            <select class="sort-dropdown" id="sort-dropdown" onchange="playlistSelector.changeSorting(this.value)">
+                                <option value="default">Par défaut</option>
+                                <option value="pinned">📌 Épinglées d'abord</option>
+                                <option value="alphabetical">🔤 Ordre alphabétique</option>
+                                <option value="recent">📅 Plus récentes</option>
+                                <option value="count">🔢 Nombre de titres</option>
+                            </select>
+                        </div>
+                        <div class="playlist-count">
+                            <span id="playlist-count">${this.filteredPlaylists.length} playlists</span>
+                        </div>
+                    </div>
+                    
                     <div class="modal-3d-content">
                         <div class="playlist-grid" id="playlist-grid">
                             ${this.renderPlaylistGrid()}
@@ -158,8 +183,8 @@ class PlaylistSelector {
 
     // Générer la grille de playlists
     renderPlaylistGrid() {
-        return this.playlists.map(playlist => `
-            <div class="playlist-card" data-playlist-id="${playlist.id}" onclick="playlistSelector.selectPlaylist('${playlist.id}')">
+        return this.filteredPlaylists.map(playlist => `
+            <div class="playlist-card ${playlist.isPinned ? 'pinned' : ''}" data-playlist-id="${playlist.id}" onclick="playlistSelector.selectPlaylist('${playlist.id}')">
                 <div class="playlist-image">
                     ${playlist.image 
                         ? `<img src="${playlist.image}" alt="${playlist.name}" loading="lazy">` 
@@ -168,6 +193,7 @@ class PlaylistSelector {
                     <div class="playlist-overlay">
                         <div class="play-icon">▶</div>
                     </div>
+                    ${playlist.isPinned ? '<div class="pin-indicator">📌</div>' : ''}
                 </div>
                 <div class="playlist-info">
                     <h3 class="playlist-name">${playlist.name}</h3>
@@ -192,7 +218,7 @@ class PlaylistSelector {
         const selectedCard = document.querySelector(`[data-playlist-id="${playlistId}"]`);
         if (selectedCard) {
             selectedCard.classList.add('selected');
-            this.selectedPlaylist = this.playlists.find(p => p.id === playlistId);
+            this.selectedPlaylist = this.filteredPlaylists.find(p => p.id === playlistId);
             
             // Activer le bouton shuffle
             const shuffleBtn = document.getElementById('shuffle-selected-btn');
@@ -237,6 +263,93 @@ class PlaylistSelector {
             }, 300);
         }
         this.selectedPlaylist = null;
+    }
+
+    // Gestion des playlists épinglées
+    getPinnedPlaylists() {
+        const saved = localStorage.getItem('melodyx_pinned_playlists');
+        return saved ? JSON.parse(saved) : [];
+    }
+
+    savePinnedPlaylists() {
+        localStorage.setItem('melodyx_pinned_playlists', JSON.stringify(this.pinnedPlaylists));
+    }
+
+    togglePin(playlistId) {
+        const index = this.pinnedPlaylists.indexOf(playlistId);
+        if (index > -1) {
+            this.pinnedPlaylists.splice(index, 1);
+        } else {
+            this.pinnedPlaylists.push(playlistId);
+        }
+        this.savePinnedPlaylists();
+        
+        // Mettre à jour l'état des playlists
+        this.playlists.forEach(playlist => {
+            if (playlist.id === playlistId) {
+                playlist.isPinned = !playlist.isPinned;
+            }
+        });
+        
+        this.applySorting();
+        this.refreshGrid();
+    }
+
+    // Fonctions de tri
+    changeSorting(sortType) {
+        this.currentSort = sortType;
+        this.applySorting();
+        this.refreshGrid();
+    }
+
+    applySorting() {
+        switch (this.currentSort) {
+            case 'pinned':
+                this.filteredPlaylists = [...this.playlists].sort((a, b) => {
+                    if (a.isPinned && !b.isPinned) return -1;
+                    if (!a.isPinned && b.isPinned) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                break;
+                
+            case 'alphabetical':
+                this.filteredPlaylists = [...this.playlists].sort((a, b) => 
+                    a.name.localeCompare(b.name)
+                );
+                break;
+                
+            case 'recent':
+                this.filteredPlaylists = [...this.playlists].sort((a, b) => 
+                    new Date(b.addedAt) - new Date(a.addedAt)
+                );
+                break;
+                
+            case 'count':
+                this.filteredPlaylists = [...this.playlists].sort((a, b) => {
+                    const aCount = a.trackCount === 'Auto' ? 9999 : parseInt(a.trackCount);
+                    const bCount = b.trackCount === 'Auto' ? 9999 : parseInt(b.trackCount);
+                    return bCount - aCount;
+                });
+                break;
+                
+            case 'default':
+            default:
+                this.filteredPlaylists = [...this.playlists];
+                break;
+        }
+    }
+
+    refreshGrid() {
+        const grid = document.getElementById('playlist-grid');
+        const counter = document.getElementById('playlist-count');
+        
+        if (grid) {
+            grid.innerHTML = this.renderPlaylistGrid();
+        }
+        
+        if (counter) {
+            counter.textContent = `${this.filteredPlaylists.length} playlists`;
+        }
     }
 
     // Modal d'erreur
