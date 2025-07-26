@@ -82,6 +82,9 @@ class VisualizerUI {
                 </div>
                 
                 <div class="visualizer-controls">
+                    <button class="visualizer-btn" id="test-btn" onclick="visualizerUI.testSpotifyAPI()" title="Test Spotify API">
+                        🔍
+                    </button>
                     <button class="visualizer-btn" id="mode-btn" onclick="visualizerUI.cycleMode()">
                         Waveform
                     </button>
@@ -95,6 +98,24 @@ class VisualizerUI {
                 <button id="start-visualizer-btn" class="btn btn-primary" onclick="visualizerUI.toggleVisualizer()">
                     Démarrer les visualisations
                 </button>
+                
+                <div class="visualizer-help" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                    <details>
+                        <summary style="cursor: pointer; color: var(--primary-color);">
+                            💡 Problèmes de détection ? Cliquez ici
+                        </summary>
+                        <div style="margin-top: 0.5rem; text-align: left; line-height: 1.4;">
+                            <p><strong>Pour que le visualiseur fonctionne :</strong></p>
+                            <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                                <li>Ouvrez Spotify sur n'importe quel appareil</li>
+                                <li>Commencez à jouer de la musique</li>
+                                <li>Cliquez sur le bouton 🔍 pour tester l'API</li>
+                                <li>Démarrez le visualiseur</li>
+                            </ol>
+                            <p style="margin-top: 0.5rem;"><strong>Note :</strong> Le visualiseur ne peut pas détecter la musique si aucun appareil Spotify n'est actif.</p>
+                        </div>
+                    </details>
+                </div>
             </div>
         `;
 
@@ -265,15 +286,26 @@ class VisualizerUI {
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         
-        if (data.isPlaying && data.currentTrack) {
-            statusDot.className = 'status-dot playing';
-            statusText.textContent = 'En lecture';
+        if (data.currentTrack) {
+            if (data.isPlaying) {
+                statusDot.className = 'status-dot playing';
+                statusText.textContent = 'En lecture';
+            } else {
+                statusDot.className = 'status-dot';
+                statusText.textContent = 'En pause';
+            }
             
             // Show and update track info
             this.updateTrackInfo(data.currentTrack, data.audioFeatures);
         } else {
-            statusDot.className = 'status-dot';
-            statusText.textContent = 'En pause';
+            statusDot.className = 'status-dot loading';
+            statusText.textContent = 'Recherche de musique...';
+            
+            // Hide track info when no track
+            const trackInfo = document.getElementById('track-info');
+            if (trackInfo) {
+                trackInfo.style.display = 'none';
+            }
         }
     }
 
@@ -313,6 +345,61 @@ class VisualizerUI {
                 </button>
             </div>
         `;
+    }
+
+    async testSpotifyAPI() {
+        console.log('🧪 Testing Spotify API connection...');
+        
+        const token = SpotifyAuth.getAccessToken();
+        if (!token) {
+            alert('❌ No Spotify token found. Please log in to Spotify first.');
+            return;
+        }
+        
+        console.log('✅ Token found:', token.substring(0, 20) + '...');
+        
+        try {
+            // Test user profile
+            console.log('🔍 Testing user profile...');
+            const userResponse = await fetch('https://api.spotify.com/v1/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (userResponse.ok) {
+                const user = await userResponse.json();
+                console.log('✅ User profile:', user.display_name);
+            } else {
+                console.error('❌ User profile failed:', userResponse.status);
+            }
+            
+            // Test player state
+            console.log('🔍 Testing player state...');
+            const playerResponse = await fetch('https://api.spotify.com/v1/me/player', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            console.log('📡 Player response status:', playerResponse.status);
+            
+            if (playerResponse.status === 204) {
+                alert('⚠️ No active Spotify device found. Please:\n1. Open Spotify on any device\n2. Start playing music\n3. Try again');
+            } else if (playerResponse.ok) {
+                const player = await playerResponse.json();
+                console.log('✅ Player state:', player);
+                
+                if (player.item) {
+                    alert(`✅ Spotify API working!\nCurrently playing: ${player.item.name}\nby ${player.item.artists.map(a => a.name).join(', ')}`);
+                } else {
+                    alert('⚠️ Spotify is connected but no track is playing. Please start playing music.');
+                }
+            } else {
+                console.error('❌ Player request failed:', playerResponse.status);
+                alert('❌ Spotify API error. Check console for details.');
+            }
+            
+        } catch (error) {
+            console.error('❌ Test failed:', error);
+            alert('❌ Network error testing Spotify API. Check your connection.');
+        }
     }
 
     // Public API

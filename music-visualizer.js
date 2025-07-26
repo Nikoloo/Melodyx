@@ -128,28 +128,83 @@ class MusicVisualizer {
 
     async fetchCurrentPlayback() {
         const token = SpotifyAuth.getAccessToken();
-        if (!token) return;
+        if (!token) {
+            console.warn('⚠️ No Spotify access token available');
+            return;
+        }
 
         try {
-            const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+            console.log('🔍 Fetching current playback...');
+            
+            // First try the currently-playing endpoint
+            let response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
 
-            if (response.ok && response.status !== 204) {
-                this.playbackState = await response.json();
+            console.log('📡 Currently-playing API response status:', response.status);
+
+            if (response.status === 204) {
+                console.log('⏸️ No music currently playing (204 response)');
+                this.playbackState = null;
                 
+                // Try the general player endpoint as fallback
+                console.log('🔄 Trying general player endpoint...');
+                response = await fetch('https://api.spotify.com/v1/me/player', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('📡 Player API response status:', response.status);
+                
+                if (response.status === 204) {
+                    console.log('⏸️ No active device found');
+                    return;
+                }
+                
+                if (response.ok) {
+                    this.playbackState = await response.json();
+                    console.log('🎵 Player state (fallback):', this.playbackState);
+                } else {
+                    console.log('❌ Both endpoints returned no playback data');
+                    return;
+                }
+            } else if (response.ok) {
+                this.playbackState = await response.json();
+                console.log('🎵 Playback state:', this.playbackState);
+            } else if (response.status === 401) {
+                console.error('🚫 Unauthorized - token may be expired');
+                this.handleTokenError();
+                return;
+            } else {
+                console.error('❌ Spotify API error:', response.status, response.statusText);
+                const errorData = await response.text();
+                console.error('Error details:', errorData);
+                return;
+            }
+
+            // Process the playback state if we have it
+            if (this.playbackState && this.playbackState.item) {
                 // Check if track changed
-                if (this.playbackState.item && 
-                    (!this.currentTrack || this.currentTrack.id !== this.playbackState.item.id)) {
+                if (!this.currentTrack || this.currentTrack.id !== this.playbackState.item.id) {
                     this.currentTrack = this.playbackState.item;
                     this.audioFeatures = null; // Reset features for new track
-                    console.log('🎵 New track detected:', this.currentTrack.name);
+                    console.log('🎵 New track detected:', this.currentTrack.name, 'by', this.currentTrack.artists.map(a => a.name).join(', '));
                 }
+                
+                if (this.playbackState.is_playing) {
+                    console.log('▶️ Music is playing:', this.playbackState.progress_ms, '/', this.currentTrack.duration_ms);
+                } else {
+                    console.log('⏸️ Music is paused');
+                }
+            } else {
+                console.log('❓ No track item in playback state');
             }
+
         } catch (error) {
-            console.error('Error fetching playback state:', error);
+            console.error('❌ Network error fetching playback state:', error);
         }
     }
 
@@ -344,6 +399,19 @@ class MusicVisualizer {
         
         this.ctx.fillStyle = '#b3b3b3';
         this.ctx.fillText(`Frames: ${this.frameCount}`, width - 110, height - 25);
+    }
+
+    handleTokenError() {
+        console.error('🚫 Spotify token expired or invalid');
+        // You might want to trigger a re-authentication here
+        // For now, just stop the visualizer
+        this.stop();
+        
+        // Update UI to show error
+        const statusText = document.getElementById('status-text');
+        if (statusText) {
+            statusText.textContent = 'Token expiré - reconnectez-vous';
+        }
     }
 
     // Public API methods
