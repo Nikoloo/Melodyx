@@ -5,8 +5,7 @@ class PlaylistSelector {
         this.filteredPlaylists = [];
         this.isLoading = false;
         this.selectedPlaylist = null;
-        this.currentSort = 'default'; // default, pinned, alphabetical, recent, count
-        this.pinnedPlaylists = this.getPinnedPlaylists();
+        this.currentSort = 'alphabetical'; // alphabetical, count
     }
 
     // Récupérer toutes les playlists de l'utilisateur
@@ -46,7 +45,7 @@ class PlaylistSelector {
                     owner: playlist.owner.display_name,
                     isOwner: playlist.owner.id === playlist.collaborative || playlist.owner.id,
                     uri: playlist.uri,
-                    isPinned: this.pinnedPlaylists.includes(playlist.id),
+                    isPinned: false,
                     addedAt: new Date(playlist.tracks.href) // Approximation pour le tri par date
                 }));
 
@@ -64,7 +63,7 @@ class PlaylistSelector {
                 owner: 'Vous',
                 isOwner: true,
                 uri: null,
-                isPinned: true, // Toujours épinglé
+                isPinned: false,
                 addedAt: new Date()
             });
 
@@ -150,10 +149,7 @@ class PlaylistSelector {
                         <div class="sort-controls">
                             <label class="sort-label">📋 Trier par:</label>
                             <select class="sort-dropdown" id="sort-dropdown" onchange="playlistSelector.changeSorting(this.value)">
-                                <option value="default">Par défaut</option>
-                                <option value="pinned">📌 Épinglées d'abord</option>
-                                <option value="alphabetical">🔤 Ordre alphabétique</option>
-                                <option value="recent">📅 Plus récentes</option>
+                                <option value="alphabetical" selected>🔤 Ordre alphabétique</option>
                                 <option value="count">🔢 Nombre de titres</option>
                             </select>
                         </div>
@@ -168,14 +164,14 @@ class PlaylistSelector {
                         </div>
                     </div>
                     
-                    <div class="modal-3d-footer">
-                        <button class="btn btn-secondary" onclick="playlistSelector.closeSelector()">
-                            Annuler
-                        </button>
-                        <button id="shuffle-selected-btn" class="btn btn-primary" onclick="playlistSelector.shuffleSelected()" disabled>
-                            Shuffle la playlist sélectionnée
-                        </button>
-                    </div>
+                </div>
+                <div class="floating-buttons">
+                    <button class="btn btn-secondary floating-btn" onclick="playlistSelector.closeSelector()">
+                        Annuler
+                    </button>
+                    <button id="shuffle-selected-btn" class="btn btn-primary floating-btn" onclick="playlistSelector.shuffleSelected()" disabled>
+                        Shuffle la playlist sélectionnée
+                    </button>
                 </div>
             </div>
         `;
@@ -184,7 +180,7 @@ class PlaylistSelector {
     // Générer la grille de playlists
     renderPlaylistGrid() {
         const html = this.filteredPlaylists.map(playlist => `
-            <div class="playlist-card ${playlist.isPinned ? 'pinned' : ''}" data-playlist-id="${playlist.id}">
+            <div class="playlist-card" data-playlist-id="${playlist.id}">
                 <div class="playlist-image">
                     ${playlist.image 
                         ? `<img src="${playlist.image}" alt="${playlist.name}" loading="lazy">` 
@@ -193,7 +189,6 @@ class PlaylistSelector {
                     <div class="playlist-overlay">
                         <div class="play-icon">▶</div>
                     </div>
-                    ${playlist.isPinned ? '<div class="pin-indicator">📌</div>' : ''}
                 </div>
                 <div class="playlist-info">
                     <h3 class="playlist-name">${playlist.name}</h3>
@@ -290,35 +285,6 @@ class PlaylistSelector {
         this.selectedPlaylist = null;
     }
 
-    // Gestion des playlists épinglées
-    getPinnedPlaylists() {
-        const saved = localStorage.getItem('melodyx_pinned_playlists');
-        return saved ? JSON.parse(saved) : [];
-    }
-
-    savePinnedPlaylists() {
-        localStorage.setItem('melodyx_pinned_playlists', JSON.stringify(this.pinnedPlaylists));
-    }
-
-    togglePin(playlistId) {
-        const index = this.pinnedPlaylists.indexOf(playlistId);
-        if (index > -1) {
-            this.pinnedPlaylists.splice(index, 1);
-        } else {
-            this.pinnedPlaylists.push(playlistId);
-        }
-        this.savePinnedPlaylists();
-        
-        // Mettre à jour l'état des playlists
-        this.playlists.forEach(playlist => {
-            if (playlist.id === playlistId) {
-                playlist.isPinned = !playlist.isPinned;
-            }
-        });
-        
-        this.applySorting();
-        this.refreshGrid();
-    }
 
     // Fonctions de tri
     changeSorting(sortType) {
@@ -329,23 +295,9 @@ class PlaylistSelector {
 
     applySorting() {
         switch (this.currentSort) {
-            case 'pinned':
-                this.filteredPlaylists = [...this.playlists].sort((a, b) => {
-                    if (a.isPinned && !b.isPinned) return -1;
-                    if (!a.isPinned && b.isPinned) return 1;
-                    return a.name.localeCompare(b.name);
-                });
-                break;
-                
             case 'alphabetical':
                 this.filteredPlaylists = [...this.playlists].sort((a, b) => 
                     a.name.localeCompare(b.name)
-                );
-                break;
-                
-            case 'recent':
-                this.filteredPlaylists = [...this.playlists].sort((a, b) => 
-                    new Date(b.addedAt) - new Date(a.addedAt)
                 );
                 break;
                 
@@ -357,9 +309,10 @@ class PlaylistSelector {
                 });
                 break;
                 
-            case 'default':
             default:
-                this.filteredPlaylists = [...this.playlists];
+                this.filteredPlaylists = [...this.playlists].sort((a, b) => 
+                    a.name.localeCompare(b.name)
+                );
                 break;
         }
     }
