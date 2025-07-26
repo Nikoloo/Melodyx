@@ -26,8 +26,14 @@ class VisualizerUI {
         // Create the visualizer container
         this.createVisualizerContainer();
         
-        // Initialize the visualizer engine
-        this.visualizer = new MusicVisualizer('visualizer-canvas');
+        // Initialize the visualizer engine (only if canvas exists)
+        const canvas = document.getElementById('visualizer-canvas');
+        if (canvas) {
+            this.visualizer = new MusicVisualizer('visualizer-canvas');
+            console.log('✅ Visualizer engine initialized');
+        } else {
+            console.warn('⚠️ Canvas not found, visualizer will be initialized on first use');
+        }
         
         // Set up event listeners
         this.setupEventListeners();
@@ -151,17 +157,21 @@ class VisualizerUI {
         });
 
         // Update UI when visualizer data changes
-        if (this.visualizer) {
-            setInterval(() => {
-                this.updateUI();
-            }, 500);
-        }
+        setInterval(() => {
+            this.updateUI();
+        }, 500);
     }
 
     async toggleVisualizer() {
         const btn = document.getElementById('start-visualizer-btn');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
+        
+        // Initialize visualizer if not already done
+        if (!this.visualizer) {
+            console.log('🔧 Initializing visualizer...');
+            this.visualizer = new MusicVisualizer('visualizer-canvas');
+        }
         
         if (!this.visualizer.isActive) {
             // Start visualizer
@@ -202,10 +212,16 @@ class VisualizerUI {
         const nextIndex = (currentIndex + 1) % modes.length;
         
         this.currentMode = modes[nextIndex];
-        this.visualizer.setVisualizationMode(this.currentMode);
+        
+        // Only set mode if visualizer exists
+        if (this.visualizer) {
+            this.visualizer.setVisualizationMode(this.currentMode);
+        }
         
         const modeBtn = document.getElementById('mode-btn');
-        modeBtn.textContent = this.modes[this.currentMode];
+        if (modeBtn) {
+            modeBtn.textContent = this.modes[this.currentMode];
+        }
         
         console.log('Visualization mode changed to:', this.currentMode);
     }
@@ -281,6 +297,7 @@ class VisualizerUI {
         if (!this.visualizer || !this.visualizer.isActive) return;
         
         const data = this.visualizer.getVisualizationData();
+        if (!data) return;
         
         // Update status
         const statusDot = document.getElementById('status-dot');
