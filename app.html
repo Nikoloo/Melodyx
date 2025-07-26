@@ -196,8 +196,17 @@
             <div class="features-grid-app">
                 <div class="feature-app">
                     <h3>🔀 Vrai mode aléatoire</h3>
-                    <p>Algorithme de lecture vraiment aléatoire pour vos playlists</p>
-                    <div class="status-badge status-coming-soon">Bientôt disponible</div>
+                    <p>Algorithme Fisher-Yates pour un mélange vraiment aléatoire de vos titres likés</p>
+                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border: 1px solid rgba(29, 185, 84, 0.3);">
+                        <small style="color: var(--primary-color); font-weight: 600;">
+                            ✓ 100% aléatoire (pas de biais)<br>
+                            ✓ Utilise vos titres likés<br>
+                            ✓ Crée une playlist temporaire
+                        </small>
+                    </div>
+                    <button id="true-random-btn" class="btn btn-primary" onclick="generateTrueRandom()">
+                        Générer playlist vraiment aléatoire
+                    </button>
                 </div>
                 
                 <div class="feature-app">
@@ -222,6 +231,7 @@
     </div>
 
     <script src="spotify-auth.js"></script>
+    <script src="true-random.js"></script>
     <script>
         // Vérifier l'authentification au chargement
         document.addEventListener('DOMContentLoaded', async () => {
@@ -300,6 +310,15 @@
         // Afficher les statistiques (placeholder)
         function showStats() {
             alert('Fonctionnalité en cours de développement ! 🚧\n\nBientôt disponible :\n• Top artistes du mois\n• Genres préférés\n• Temps d\'écoute\n• Découvertes musicales');
+        }
+
+        // Fonction pour générer la playlist vraiment aléatoire
+        async function generateTrueRandom() {
+            try {
+                await trueRandomMode.generateTrueRandomPlaylist();
+            } catch (error) {
+                console.error('Erreur lors de la génération:', error);
+            }
         }
 
         // Rafraîchir la piste actuelle toutes les 30 secondes
