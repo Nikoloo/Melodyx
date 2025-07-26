@@ -322,12 +322,23 @@ class VisualizerUI {
         if (audioFeatures) {
             featuresContainer.style.display = 'flex';
             
-            document.getElementById('feature-energy').textContent = 
-                Math.round(audioFeatures.energy * 100) + '%';
-            document.getElementById('feature-tempo').textContent = 
-                Math.round(audioFeatures.tempo) + ' BPM';
-            document.getElementById('feature-dance').textContent = 
-                Math.round(audioFeatures.danceability * 100) + '%';
+            const energyText = Math.round(audioFeatures.energy * 100) + '%';
+            const tempoText = Math.round(audioFeatures.tempo) + ' BPM';
+            const danceText = Math.round(audioFeatures.danceability * 100) + '%';
+            
+            // Add fallback indicator if using simulated features
+            const suffix = audioFeatures.fallback ? '*' : '';
+            
+            document.getElementById('feature-energy').textContent = energyText + suffix;
+            document.getElementById('feature-tempo').textContent = tempoText + suffix;
+            document.getElementById('feature-dance').textContent = danceText + suffix;
+            
+            // Add tooltip for fallback mode
+            if (audioFeatures.fallback) {
+                featuresContainer.title = '* Valeurs simulées (API audio-features restreinte)';
+            } else {
+                featuresContainer.title = 'Données audio Spotify';
+            }
         } else {
             featuresContainer.style.display = 'none';
         }

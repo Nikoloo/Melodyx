@@ -215,6 +215,7 @@ class MusicVisualizer {
         if (!token) return;
 
         try {
+            console.log('🎼 Attempting to fetch audio features...');
             const response = await fetch(`https://api.spotify.com/v1/audio-features/${this.currentTrack.id}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -223,51 +224,108 @@ class MusicVisualizer {
 
             if (response.ok) {
                 this.audioFeatures = await response.json();
-                console.log('🎼 Audio features loaded:', {
+                console.log('✅ Audio features loaded:', {
                     energy: this.audioFeatures.energy,
                     danceability: this.audioFeatures.danceability,
                     tempo: this.audioFeatures.tempo,
                     valence: this.audioFeatures.valence
                 });
+            } else if (response.status === 403) {
+                console.warn('⚠️ Audio features API restricted (403). Using fallback visualization.');
+                // Set fallback features to prevent repeated API calls
+                this.audioFeatures = this.generateFallbackFeatures();
+            } else {
+                console.error('❌ Audio features error:', response.status, response.statusText);
+                // Set fallback features
+                this.audioFeatures = this.generateFallbackFeatures();
             }
         } catch (error) {
-            console.error('Error fetching audio features:', error);
+            console.error('❌ Network error fetching audio features:', error);
+            // Set fallback features
+            this.audioFeatures = this.generateFallbackFeatures();
         }
+    }
+
+    generateFallbackFeatures() {
+        // Generate reasonable fallback values for visualization
+        console.log('🎨 Generating fallback audio features...');
+        return {
+            energy: 0.7,        // Moderate energy
+            danceability: 0.6,  // Moderate danceability
+            tempo: 120,         // Standard tempo
+            valence: 0.5,       // Neutral mood
+            acousticness: 0.3,
+            instrumentalness: 0.1,
+            speechiness: 0.1,
+            liveness: 0.2,
+            fallback: true      // Flag to indicate these are generated values
+        };
     }
 
     updateVisualization() {
         this.time += 0.016; // ~60fps
 
-        // Generate simulated audio data based on Spotify features
-        if (this.audioFeatures && this.playbackState?.is_playing) {
-            const { energy, danceability, tempo, valence } = this.audioFeatures;
+        // Generate simulated audio data based on playback state and features
+        if (this.playbackState?.is_playing && this.currentTrack) {
             const progress = this.playbackState.progress_ms / this.currentTrack.duration_ms;
+            
+            // Use audio features if available, otherwise use smart fallbacks
+            let energy, danceability, tempo, valence;
+            
+            if (this.audioFeatures) {
+                ({ energy, danceability, tempo, valence } = this.audioFeatures);
+                
+                if (this.audioFeatures.fallback) {
+                    console.log('🎨 Using fallback visualization mode');
+                    // Add some variation to fallback values based on song progress
+                    energy = 0.5 + Math.sin(progress * Math.PI * 4) * 0.3;
+                    danceability = 0.4 + Math.sin(progress * Math.PI * 2) * 0.3;
+                    tempo = 120 + Math.sin(this.time * 0.1) * 20;
+                    valence = 0.5 + Math.sin(progress * Math.PI) * 0.3;
+                }
+            } else {
+                // Fully dynamic fallback based on song timing
+                energy = 0.5 + Math.sin(progress * Math.PI * 3) * 0.4;
+                danceability = 0.4 + Math.cos(progress * Math.PI * 2) * 0.4;
+                tempo = 120 + Math.sin(this.time * 0.05) * 30;
+                valence = 0.3 + Math.sin(progress * Math.PI) * 0.5;
+            }
             
             // Calculate intensity based on song progress and features
             const baseIntensity = energy * 0.8 + danceability * 0.6;
             const tempoFactor = Math.min(tempo / 120, 2); // Normalize around 120 BPM
-            const progressIntensity = Math.sin(progress * Math.PI) * 0.3; // Peak in middle
+            const progressIntensity = Math.sin(progress * Math.PI) * 0.4; // Peak in middle
             
-            this.amplitude = baseIntensity + progressIntensity;
+            this.amplitude = Math.max(0.1, baseIntensity + progressIntensity);
             
-            // Generate frequency bars
+            // Generate frequency bars with more dynamic behavior
             for (let i = 0; i < this.frequencyData.length; i++) {
                 const frequency = i / this.frequencyData.length;
-                const bassBoost = frequency < 0.1 ? 2 : 1;
-                const midBoost = frequency > 0.1 && frequency < 0.6 ? 1.5 : 1;
+                const bassBoost = frequency < 0.1 ? 2.5 : 1;
+                const midBoost = frequency > 0.1 && frequency < 0.6 ? 1.8 : 1;
+                const trebleBoost = frequency > 0.8 ? 1.3 : 1;
                 
-                const wave = Math.sin(this.time * tempoFactor + i * 0.1) * this.amplitude;
-                const noise = (Math.random() - 0.5) * 0.1 * energy;
+                // Create more complex wave patterns
+                const wave1 = Math.sin(this.time * tempoFactor + i * 0.15) * this.amplitude;
+                const wave2 = Math.sin(this.time * tempoFactor * 0.7 + i * 0.1) * this.amplitude * 0.5;
+                const noise = (Math.random() - 0.5) * 0.15 * energy;
                 
-                this.frequencyData[i] = Math.max(0, 
-                    (wave + noise) * bassBoost * midBoost * 0.5 + 0.1
+                const combinedWave = (wave1 + wave2 + noise) * bassBoost * midBoost * trebleBoost;
+                
+                this.frequencyData[i] = Math.max(0.05, 
+                    Math.min(1, combinedWave * 0.4 + 0.15)
                 );
             }
             
-            // Generate waveform
+            // Generate waveform with more variation
             for (let i = 0; i < this.waveformData.length; i++) {
-                const phase = (this.time * tempoFactor * 2) + (i / this.waveformData.length) * Math.PI * 2;
-                this.waveformData[i] = Math.sin(phase) * this.amplitude * valence * 0.3;
+                const phase1 = (this.time * tempoFactor * 2) + (i / this.waveformData.length) * Math.PI * 2;
+                const phase2 = (this.time * tempoFactor * 1.3) + (i / this.waveformData.length) * Math.PI * 3;
+                
+                const wave1 = Math.sin(phase1) * this.amplitude * valence;
+                const wave2 = Math.sin(phase2) * this.amplitude * energy * 0.3;
+                
+                this.waveformData[i] = (wave1 + wave2) * 0.4;
             }
         } else {
             // Idle animation when not playing
@@ -275,6 +333,11 @@ class MusicVisualizer {
             for (let i = 0; i < this.frequencyData.length; i++) {
                 this.frequencyData[i] *= 0.98;
                 this.frequencyData[i] += Math.random() * 0.02;
+            }
+            
+            // Gentle waveform when idle
+            for (let i = 0; i < this.waveformData.length; i++) {
+                this.waveformData[i] *= 0.99;
             }
         }
     }
@@ -377,10 +440,11 @@ class MusicVisualizer {
         
         // Audio features (if available)
         if (this.audioFeatures) {
-            this.ctx.fillStyle = this.colors.secondary;
+            this.ctx.fillStyle = this.audioFeatures.fallback ? '#ffc107' : this.colors.secondary;
             this.ctx.font = '12px Inter, sans-serif';
             const features = `Energy: ${Math.round(this.audioFeatures.energy * 100)}% | ` +
-                           `Tempo: ${Math.round(this.audioFeatures.tempo)} BPM`;
+                           `Tempo: ${Math.round(this.audioFeatures.tempo)} BPM` +
+                           (this.audioFeatures.fallback ? ' (Simulé)' : '');
             this.ctx.fillText(features, 40, 90);
         }
     }
