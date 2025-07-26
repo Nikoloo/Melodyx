@@ -367,8 +367,8 @@ class MusicVisualizer {
             const bubble = {
                 x: Math.random() * width,
                 y: height * 0.3 + Math.random() * height * 0.4, // Middle area
-                size: 20 + intensity * (this.visualizationMode === 'intense' ? 100 : 80),
-                maxSize: 30 + intensity * (this.visualizationMode === 'intense' ? 150 : 120),
+                size: Math.max(10, 20 + intensity * (this.visualizationMode === 'intense' ? 100 : 80)),
+                maxSize: Math.max(20, 30 + intensity * (this.visualizationMode === 'intense' ? 150 : 120)),
                 life: 1.0,
                 intensity: intensity,
                 hue: Math.random() * 60 + (this.visualizationMode === 'intense' ? 0 : 100), // More variety in intense mode
@@ -488,7 +488,7 @@ class MusicVisualizer {
         for (let i = 0; i < numParticles; i++) {
             const x = (Math.sin(this.time * 0.2 + i) * 0.5 + 0.5) * width;
             const y = (Math.cos(this.time * 0.15 + i) * 0.5 + 0.5) * height;
-            const size = 2 + Math.sin(this.time + i) * 3;
+            const size = Math.max(0.5, 2 + Math.sin(this.time + i) * 3); // Ensure positive radius
             
             this.ctx.beginPath();
             this.ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -592,7 +592,7 @@ class MusicVisualizer {
             this.ctx.shadowColor = `hsla(${hue}, 70%, 60%, 0.6)`;
             
             this.ctx.beginPath();
-            this.ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+            this.ctx.arc(bubble.x, bubble.y, Math.max(1, bubble.size), 0, Math.PI * 2);
             this.ctx.fillStyle = gradient;
             this.ctx.fill();
             
@@ -602,7 +602,7 @@ class MusicVisualizer {
             this.ctx.arc(
                 bubble.x - bubble.size * 0.3,
                 bubble.y - bubble.size * 0.3,
-                bubble.size * 0.2,
+                Math.max(0.5, bubble.size * 0.2),
                 0, Math.PI * 2
             );
             this.ctx.fillStyle = `hsla(${hue}, 30%, 80%, ${bubble.life * 0.5})`;
@@ -673,8 +673,10 @@ class MusicVisualizer {
 
     getVisualizationData() {
         return {
-            frequencyData: [...this.frequencyData],
-            waveformData: [...this.waveformData],
+            beatIntensity: this.beatIntensity,
+            melodyIntensity: this.melodyIntensity,
+            bassIntensity: this.bassIntensity,
+            bubbleCount: this.bubbles.length,
             amplitude: this.amplitude,
             isPlaying: this.playbackState?.is_playing || false,
             currentTrack: this.currentTrack,
