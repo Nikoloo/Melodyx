@@ -47,6 +47,10 @@ class MusicVisualizer {
         // Visualization mode
         this.visualizationMode = 'bubbles';
         
+        // Real audio analyzer
+        this.audioAnalyzer = null;
+        this.useRealAudio = false;
+        
         this.setupCanvas();
         this.initializeVisuals();
     }
@@ -282,40 +286,11 @@ class MusicVisualizer {
     updateVisualization() {
         this.time += 0.016; // ~60fps
 
-        if (this.playbackState?.is_playing && this.currentTrack) {
-            const progress = this.playbackState.progress_ms / this.currentTrack.duration_ms;
-            
-            // Get audio features (real or fallback)
-            let energy, danceability, tempo, valence;
-            
-            if (this.audioFeatures) {
-                ({ energy, danceability, tempo, valence } = this.audioFeatures);
-                
-                if (this.audioFeatures.fallback) {
-                    // Dynamic fallback values
-                    energy = 0.5 + Math.sin(progress * Math.PI * 4) * 0.3;
-                    danceability = 0.4 + Math.sin(progress * Math.PI * 2) * 0.3;
-                    tempo = 120 + Math.sin(this.time * 0.1) * 20;
-                    valence = 0.5 + Math.sin(progress * Math.PI) * 0.3;
-                }
-            } else {
-                energy = 0.5 + Math.sin(progress * Math.PI * 3) * 0.4;
-                danceability = 0.4 + Math.cos(progress * Math.PI * 2) * 0.4;
-                tempo = 120 + Math.sin(this.time * 0.05) * 30;
-                valence = 0.3 + Math.sin(progress * Math.PI) * 0.5;
-            }
-            
-            const tempoFactor = tempo / 120;
-            
-            // 🥁 BEAT DETECTION & BUBBLE SYSTEM
-            this.updateBeatDetection(energy, danceability, tempoFactor);
-            
-            // 🌊 FLOWING WAVE SYSTEM  
-            this.updateFlowingWaves(valence, energy, tempoFactor);
-            
-            // Update global amplitude for other effects
-            this.amplitude = Math.max(0.1, energy * 0.8 + danceability * 0.6);
-            
+        // Check if using real-time audio
+        if (this.useRealAudio && this.audioAnalyzer && this.audioAnalyzer.isListening) {
+            this.updateVisualizationFromRealAudio();
+        } else if (this.playbackState?.is_playing && this.currentTrack) {
+            this.updateVisualizationFromSpotify();
         } else {
             // Idle state - decay all effects
             this.beatIntensity *= 0.95;
@@ -329,6 +304,71 @@ class MusicVisualizer {
         
         // Update existing bubbles
         this.updateBubbles();
+    }
+
+    updateVisualizationFromRealAudio() {
+        const audioData = this.audioAnalyzer.getAnalysisData();
+        
+        if (!audioData || !audioData.isListening) return;
+        
+        // Map real audio data to our visualization parameters
+        const energy = audioData.volume * 0.8 + audioData.bassLevel * 0.7;
+        const danceability = (audioData.bassLevel + audioData.midLevel) * 0.5;
+        const tempo = audioData.tempo || 120;
+        const valence = audioData.midLevel * 0.6 + audioData.trebleLevel * 0.4;
+        
+        const tempoFactor = tempo / 120;
+        
+        // Use real beat detection from audio analyzer
+        if (audioData.bassLevel > 0.4) {
+            this.triggerBeat(audioData.bassLevel);
+        }
+        
+        // 🌊 FLOWING WAVE SYSTEM based on real frequency data
+        this.updateFlowingWavesFromRealAudio(audioData.frequencyData, energy, tempoFactor);
+        
+        // Update global amplitude
+        this.amplitude = Math.max(0.1, energy);
+        
+        // Update beat intensity based on bass
+        this.beatIntensity = Math.max(this.beatIntensity * 0.9, audioData.bassLevel);
+        this.melodyIntensity = audioData.midLevel * 0.8 + audioData.trebleLevel * 0.6;
+        this.bassIntensity = audioData.bassLevel;
+    }
+
+    updateVisualizationFromSpotify() {
+        const progress = this.playbackState.progress_ms / this.currentTrack.duration_ms;
+        
+        // Get audio features (real or fallback)
+        let energy, danceability, tempo, valence;
+        
+        if (this.audioFeatures) {
+            ({ energy, danceability, tempo, valence } = this.audioFeatures);
+            
+            if (this.audioFeatures.fallback) {
+                // Dynamic fallback values
+                energy = 0.5 + Math.sin(progress * Math.PI * 4) * 0.3;
+                danceability = 0.4 + Math.sin(progress * Math.PI * 2) * 0.3;
+                tempo = 120 + Math.sin(this.time * 0.1) * 20;
+                valence = 0.5 + Math.sin(progress * Math.PI) * 0.3;
+            }
+        } else {
+            energy = 0.5 + Math.sin(progress * Math.PI * 3) * 0.4;
+            danceability = 0.4 + Math.cos(progress * Math.PI * 2) * 0.4;
+            tempo = 120 + Math.sin(this.time * 0.05) * 30;
+            valence = 0.3 + Math.sin(progress * Math.PI) * 0.5;
+        }
+        
+        const tempoFactor = tempo / 120;
+        
+        // 🥁 BEAT DETECTION & BUBBLE SYSTEM
+        this.updateBeatDetection(energy, danceability, tempoFactor);
+        
+        // 🌊 FLOWING WAVE SYSTEM  
+        this.updateFlowingWaves(valence, energy, tempoFactor);
+        
+        // Update global amplitude for other effects
+        this.amplitude = Math.max(0.1, energy * 0.8 + danceability * 0.6);
     }
 
     updateBeatDetection(energy, danceability, tempoFactor) {
@@ -497,6 +537,32 @@ class MusicVisualizer {
         }
         
         this.ctx.restore();
+    }
+
+    updateFlowingWavesFromRealAudio(frequencyData, energy, tempoFactor) {
+        // Update melody intensity based on real frequency data
+        this.melodyIntensity = energy * 0.8;
+        this.bassIntensity = energy;
+        
+        // Generate flowing wave points from real frequency data
+        const numPoints = 80;
+        this.wavePoints = [];
+        
+        for (let i = 0; i <= numPoints; i++) {
+            const x = (i / numPoints);
+            
+            // Map frequency data to wave points
+            const freqIndex = Math.floor((i / numPoints) * frequencyData.length);
+            const amplitude = frequencyData[freqIndex] || 0;
+            
+            // Combine with smooth waves for organic look
+            const wave1 = Math.sin(x * Math.PI * 4 + this.time * tempoFactor * 3) * amplitude;
+            const wave2 = Math.sin(x * Math.PI * 6 + this.time * tempoFactor * 2) * amplitude * 0.5;
+            
+            const y = (wave1 + wave2) * 100; // Scale for visibility
+            
+            this.wavePoints.push({ x: x, y: y });
+        }
     }
 
     renderFlowingWaves(width, height) {
@@ -669,6 +735,12 @@ class MusicVisualizer {
     setVisualizationMode(mode) {
         this.visualizationMode = mode;
         console.log('Visualization mode:', mode);
+    }
+
+    setAudioAnalyzer(analyzer) {
+        this.audioAnalyzer = analyzer;
+        this.useRealAudio = !!analyzer;
+        console.log('Audio source set to:', this.useRealAudio ? 'Real-time audio' : 'Spotify data');
     }
 
     getVisualizationData() {

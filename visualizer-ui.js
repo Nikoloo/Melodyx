@@ -10,6 +10,8 @@ class VisualizerUI {
         this.isInitialized = false;
         this.container = null;
         this.currentMode = 'bubbles';
+        this.audioAnalyzer = null;
+        this.useRealAudio = false;
         
         this.modes = {
             'bubbles': 'Bulles & Vagues',
@@ -37,6 +39,9 @@ class VisualizerUI {
         
         // Set up event listeners
         this.setupEventListeners();
+        
+        // Set up audio source selector
+        this.setupAudioSourceSelector();
         
         this.isInitialized = true;
         console.log('✅ Visualizer UI initialized');
@@ -101,6 +106,20 @@ class VisualizerUI {
             </div>
             
             <div class="visualizer-actions" style="margin-top: 1rem; text-align: center;">
+                <div class="audio-source-selector" style="margin-bottom: 1rem;">
+                    <p style="margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 600;">Source audio :</p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <label class="audio-source-option">
+                            <input type="radio" name="audioSource" value="spotify" checked>
+                            <span>🎵 Données Spotify</span>
+                        </label>
+                        <label class="audio-source-option">
+                            <input type="radio" name="audioSource" value="realtime">
+                            <span>🔊 Audio en temps réel</span>
+                        </label>
+                    </div>
+                </div>
+                
                 <button id="start-visualizer-btn" class="btn btn-primary" onclick="visualizerUI.toggleVisualizer()">
                     Démarrer les visualisations
                 </button>
@@ -108,17 +127,23 @@ class VisualizerUI {
                 <div class="visualizer-help" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
                     <details>
                         <summary style="cursor: pointer; color: var(--primary-color);">
-                            💡 Problèmes de détection ? Cliquez ici
+                            💡 Quelle source choisir ?
                         </summary>
                         <div style="margin-top: 0.5rem; text-align: left; line-height: 1.4;">
-                            <p><strong>Pour que le visualiseur fonctionne :</strong></p>
-                            <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                                <li>Ouvrez Spotify sur n'importe quel appareil</li>
-                                <li>Commencez à jouer de la musique</li>
-                                <li>Cliquez sur le bouton 🔍 pour tester l'API</li>
-                                <li>Démarrez le visualiseur</li>
-                            </ol>
-                            <p style="margin-top: 0.5rem;"><strong>Note :</strong> Le visualiseur ne peut pas détecter la musique si aucun appareil Spotify n'est actif.</p>
+                            <p><strong>🎵 Données Spotify :</strong></p>
+                            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                                <li>Utilise les métadonnées de Spotify (tempo, énergie, etc.)</li>
+                                <li>Fonctionne avec n'importe quel appareil Spotify</li>
+                                <li>Visualisation basée sur les caractéristiques du morceau</li>
+                            </ul>
+                            
+                            <p><strong>🔊 Audio en temps réel :</strong></p>
+                            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                                <li>Analyse l'audio réel en temps réel</li>
+                                <li>Détection précise des basses et percussions</li>
+                                <li>Fonctionne avec toute source audio (Spotify, YouTube, etc.)</li>
+                                <li>Nécessite l'autorisation d'accès à l'audio</li>
+                            </ul>
                         </div>
                     </details>
                 </div>
@@ -162,6 +187,60 @@ class VisualizerUI {
         }, 500);
     }
 
+    setupAudioSourceSelector() {
+        // Listen for audio source changes
+        const radioButtons = document.querySelectorAll('input[name="audioSource"]');
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.handleAudioSourceChange(e.target.value);
+            });
+        });
+    }
+
+    async handleAudioSourceChange(source) {
+        console.log('🔄 Audio source changed to:', source);
+        
+        this.useRealAudio = (source === 'realtime');
+        
+        // If visualizer is running, restart with new audio source
+        if (this.visualizer && this.visualizer.isActive) {
+            console.log('🔄 Restarting visualizer with new audio source...');
+            
+            // Stop current visualizer
+            this.visualizer.stop();
+            
+            // Initialize real-time audio analyzer if needed
+            if (this.useRealAudio && !this.audioAnalyzer) {
+                try {
+                    this.audioAnalyzer = new RealAudioAnalyzer();
+                    await this.audioAnalyzer.initialize();
+                    console.log('✅ Real-time audio analyzer initialized');
+                } catch (error) {
+                    console.error('❌ Failed to initialize audio analyzer:', error);
+                    // Fall back to Spotify mode
+                    this.useRealAudio = false;
+                    document.querySelector('input[value="spotify"]').checked = true;
+                    alert('❌ Échec de l\'accès audio. Retour aux données Spotify.');
+                    return;
+                }
+            }
+            
+            // Set the audio source on the visualizer
+            if (this.useRealAudio && this.audioAnalyzer) {
+                this.visualizer.setAudioAnalyzer(this.audioAnalyzer);
+                this.audioAnalyzer.startListening();
+            } else {
+                this.visualizer.setAudioAnalyzer(null);
+                if (this.audioAnalyzer) {
+                    this.audioAnalyzer.stopListening();
+                }
+            }
+            
+            // Restart visualizer
+            await this.visualizer.start();
+        }
+    }
+
     async toggleVisualizer() {
         const btn = document.getElementById('start-visualizer-btn');
         const statusDot = document.getElementById('status-dot');
@@ -174,6 +253,23 @@ class VisualizerUI {
         }
         
         if (!this.visualizer.isActive) {
+            // Initialize real-time audio if selected
+            if (this.useRealAudio && !this.audioAnalyzer) {
+                try {
+                    statusText.textContent = 'Initialisation audio...';
+                    this.audioAnalyzer = new RealAudioAnalyzer();
+                    await this.audioAnalyzer.initialize();
+                    console.log('✅ Real-time audio analyzer initialized');
+                } catch (error) {
+                    console.error('❌ Failed to initialize audio analyzer:', error);
+                    this.showError('Erreur d\'accès audio. Utilisez les données Spotify à la place.');
+                    // Switch back to Spotify mode
+                    this.useRealAudio = false;
+                    document.querySelector('input[value="spotify"]').checked = true;
+                    return;
+                }
+            }
+            
             // Start visualizer
             btn.textContent = 'Arrêter les visualisations';
             btn.classList.remove('btn-primary');
@@ -183,9 +279,18 @@ class VisualizerUI {
             statusText.textContent = 'Démarrage...';
             
             try {
+                // Set audio source on visualizer
+                if (this.useRealAudio && this.audioAnalyzer) {
+                    this.visualizer.setAudioAnalyzer(this.audioAnalyzer);
+                    this.audioAnalyzer.startListening();
+                    statusText.textContent = 'Audio en temps réel actif';
+                } else {
+                    this.visualizer.setAudioAnalyzer(null);
+                    statusText.textContent = 'Visualiseur Spotify actif';
+                }
+                
                 await this.visualizer.start();
                 statusDot.className = 'status-dot playing';
-                statusText.textContent = 'Visualiseur actif';
             } catch (error) {
                 console.error('Error starting visualizer:', error);
                 this.showError('Erreur lors du démarrage du visualiseur');
@@ -193,6 +298,11 @@ class VisualizerUI {
         } else {
             // Stop visualizer
             this.visualizer.stop();
+            
+            // Stop real-time audio if active
+            if (this.audioAnalyzer) {
+                this.audioAnalyzer.stopListening();
+            }
             
             btn.textContent = 'Démarrer les visualisations';
             btn.classList.remove('btn-secondary');
