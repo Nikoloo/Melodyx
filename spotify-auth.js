@@ -2,7 +2,7 @@
 const SpotifyAuth = {
     // Configuration OAuth Spotify
     config: {
-        clientId: 'YOUR_SPOTIFY_CLIENT_ID', // À remplacer par votre Client ID
+        clientId: '6b0945e253ec4d6d87b5729d1dd946df', // À remplacer par votre Client ID
         redirectUri: this.getRedirectUri(), // URL de callback dynamique
         scopes: [
             'user-read-private',
