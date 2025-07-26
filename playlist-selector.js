@@ -183,8 +183,8 @@ class PlaylistSelector {
 
     // Générer la grille de playlists
     renderPlaylistGrid() {
-        return this.filteredPlaylists.map(playlist => `
-            <div class="playlist-card ${playlist.isPinned ? 'pinned' : ''}" data-playlist-id="${playlist.id}" onclick="playlistSelector.selectPlaylist('${playlist.id}')">
+        const html = this.filteredPlaylists.map(playlist => `
+            <div class="playlist-card ${playlist.isPinned ? 'pinned' : ''}" data-playlist-id="${playlist.id}">
                 <div class="playlist-image">
                     ${playlist.image 
                         ? `<img src="${playlist.image}" alt="${playlist.name}" loading="lazy">` 
@@ -205,10 +205,27 @@ class PlaylistSelector {
                 </div>
             </div>
         `).join('');
+        
+        // Ajouter les event listeners après le rendu
+        setTimeout(() => this.attachPlaylistEvents(), 0);
+        
+        return html;
+    }
+
+    // Attacher les événements aux cartes de playlist
+    attachPlaylistEvents() {
+        document.querySelectorAll('.playlist-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const playlistId = card.getAttribute('data-playlist-id');
+                this.selectPlaylist(playlistId);
+            });
+        });
     }
 
     // Sélectionner une playlist
     selectPlaylist(playlistId) {
+        console.log('selectPlaylist appelé avec ID:', playlistId);
+        
         // Retirer la sélection précédente
         document.querySelectorAll('.playlist-card').forEach(card => {
             card.classList.remove('selected');
@@ -220,31 +237,39 @@ class PlaylistSelector {
             selectedCard.classList.add('selected');
             this.selectedPlaylist = this.filteredPlaylists.find(p => p.id === playlistId);
             
+            console.log('Playlist sélectionnée:', this.selectedPlaylist);
+            
             // Activer le bouton shuffle
             const shuffleBtn = document.getElementById('shuffle-selected-btn');
             if (shuffleBtn) {
                 shuffleBtn.disabled = false;
                 shuffleBtn.textContent = `Shuffle "${this.selectedPlaylist.name}"`;
             }
+        } else {
+            console.error('Carte de playlist non trouvée pour ID:', playlistId);
         }
     }
 
     // Lancer le shuffle de la playlist sélectionnée
     async shuffleSelected() {
+        console.log('shuffleSelected appelé, selectedPlaylist:', this.selectedPlaylist);
+        
         if (!this.selectedPlaylist) {
             alert('Veuillez sélectionner une playlist');
             return;
         }
 
         try {
+            // Sauvegarder la playlist sélectionnée avant de fermer le modal
+            const playlistToShuffle = this.selectedPlaylist;
             this.closeSelector();
             
-            if (this.selectedPlaylist.id === 'liked-tracks') {
+            if (playlistToShuffle.id === 'liked-tracks') {
                 // Utiliser la méthode existante pour les titres likés
                 await trueRandomMode.generateTrueRandomPlaylist();
             } else {
                 // Nouvelle méthode pour les playlists spécifiques
-                await trueRandomMode.shuffleSpecificPlaylist(this.selectedPlaylist);
+                await trueRandomMode.shuffleSpecificPlaylist(playlistToShuffle);
             }
             
         } catch (error) {
