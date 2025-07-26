@@ -71,9 +71,14 @@ class MusicVisualizer {
     }
 
     initializeVisuals() {
-        // Initialize with default neutral values
-        this.frequencyData = this.frequencyData.map(() => Math.random() * 0.1);
-        this.waveformData = this.waveformData.map(() => Math.random() * 0.05);
+        // Initialize visualization system
+        this.beatIntensity = 0;
+        this.melodyIntensity = 0;
+        this.bassIntensity = 0;
+        this.bubbles = [];
+        this.wavePoints = [];
+        
+        console.log('✅ Visualization system initialized');
     }
 
     async start() {
