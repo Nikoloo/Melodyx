@@ -298,7 +298,7 @@ function updateLoginStatus() {
         document.querySelectorAll('.btn-primary').forEach(button => {
             if (button.textContent.includes('Commencer')) {
                 button.textContent = 'Ouvrir l\'application';
-                button.onclick = () => window.location.href = '/app';
+                button.onclick = () => window.location.href = '/Melodyx/app.html';
             }
         });
     }
