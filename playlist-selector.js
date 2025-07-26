@@ -164,14 +164,14 @@ class PlaylistSelector {
                         </div>
                     </div>
                     
-                </div>
-                <div class="floating-buttons">
-                    <button class="btn btn-secondary floating-btn" onclick="playlistSelector.closeSelector()">
-                        Annuler
-                    </button>
-                    <button id="shuffle-selected-btn" class="btn btn-primary floating-btn" onclick="playlistSelector.shuffleSelected()" disabled>
-                        Shuffle la playlist sélectionnée
-                    </button>
+                    <div class="floating-buttons">
+                        <button class="btn btn-secondary floating-btn" onclick="playlistSelector.closeSelector()">
+                            Annuler
+                        </button>
+                        <button id="shuffle-selected-btn" class="btn btn-primary floating-btn" onclick="playlistSelector.shuffleSelected()" disabled>
+                            Shuffle la playlist sélectionnée
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
