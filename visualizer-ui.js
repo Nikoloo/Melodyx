@@ -122,17 +122,28 @@ class VisualizerUI {
                 <div class="visualizer-help" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
                     <details>
                         <summary style="cursor: pointer; color: var(--primary-color);">
-                            💡 Quelle source choisir ?
+                            💡 Instructions détaillées
                         </summary>
                         <div style="margin-top: 0.5rem; text-align: left; line-height: 1.4;">
-                            <p><strong>🔊 Audio en temps réel :</strong></p>
+                            <p><strong>🔊 Comment ça marche :</strong></p>
+                            <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                                <li><strong>Cliquez sur "Démarrer"</strong> - Une popup va apparaitre</li>
+                                <li><strong>Sélectionnez "Onglet entier"</strong> dans la popup</li>
+                                <li><strong>Cochez "Partager l'audio de l'onglet"</strong> ✅</li>
+                                <li><strong>Cliquez "Partager"</strong> pour confirmer</li>
+                            </ol>
+                            
+                            <p><strong>🎵 Avantages :</strong></p>
                             <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                                <li>Analyse l'audio réel directement depuis le navigateur</li>
+                                <li>Capture l'audio réel de Spotify, YouTube, Apple Music, etc.</li>
+                                <li>Fonctionne même si la musique est dans une autre application</li>
                                 <li>Détection précise des basses, moyennes et aiguës</li>
-                                <li>Fonctionne avec toute source audio (Spotify, YouTube, etc.)</li>
                                 <li>Visualisations réactives basées sur les vraies fréquences</li>
-                                <li>Nécessite l'autorisation d'accès à l'audio du navigateur</li>
                             </ul>
+                            
+                            <p style="margin-top: 0.75rem; font-size: 0.85em; color: var(--primary-color);">
+                                📝 <strong>Important :</strong> Pour capturer Spotify, lancez Spotify dans un onglet du navigateur plutôt que l'application desktop.
+                            </p>
                         </div>
                     </details>
                 </div>
@@ -189,23 +200,38 @@ class VisualizerUI {
         }
         
         if (!this.visualizer.isActive) {
-            try {
-                statusText.textContent = 'Initialisation audio...';
-            
             // Start visualizer
             btn.textContent = 'Arrêter les visualisations';
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-secondary');
             
             statusDot.className = 'status-dot loading';
-            statusText.textContent = 'Démarrage...';
+            statusText.textContent = 'Demande d\'autorisation audio...';
             
+            try {
                 await this.visualizer.start();
                 statusDot.className = 'status-dot playing';
-                statusText.textContent = 'Audio en temps réel actif';
+                statusText.textContent = 'Audio système capturé - Visualisations actives';
             } catch (error) {
                 console.error('Error starting visualizer:', error);
-                this.showError('Erreur lors du démarrage du visualiseur: ' + error.message);
+                
+                // Reset UI on error
+                btn.textContent = 'Démarrer les visualisations';
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+                statusDot.className = 'status-dot';
+                
+                // Show specific error messages
+                if (error.message.includes('NotAllowedError') || error.message.includes('Permission denied')) {
+                    statusText.textContent = 'Permission refusée - Cliquez pour réessayer';
+                    this.showError('Accès audio refusé. Cliquez sur "Démarrer" et acceptez le partage d\'audio dans la popup.');
+                } else if (error.message.includes('NotSupportedError')) {
+                    statusText.textContent = 'Navigateur non supporté';
+                    this.showError('Votre navigateur ne supporte pas la capture audio. Utilisez Chrome ou Edge pour de meilleurs résultats.');
+                } else {
+                    statusText.textContent = 'Erreur d\'initialisation';
+                    this.showError(`Erreur: ${error.message}. Assurez-vous d\'utiliser Chrome et d\'accepter le partage audio.`);
+                }
             }
         } else {
             // Stop visualizer
@@ -217,7 +243,7 @@ class VisualizerUI {
             btn.classList.add('btn-primary');
             
             statusDot.className = 'status-dot';
-            statusText.textContent = 'Visualiseur arrêté';
+            statusText.textContent = 'Visualiseur arrêté - Cliquez pour redémarrer';
             
             // Hide track info
             document.getElementById('track-info').style.display = 'none';
@@ -374,25 +400,84 @@ class VisualizerUI {
 
     showError(message) {
         const container = document.getElementById('main-visualizer');
-        container.innerHTML = `
-            <div class="visualizer-error">
-                <div class="error-icon">⚠️</div>
-                <p><strong>Erreur du visualiseur</strong></p>
-                <p>${message}</p>
-                <button class="retry-btn" onclick="location.reload()">
-                    Recharger la page
-                </button>
+        const canvas = container.querySelector('canvas');
+        
+        // Show error overlay without removing the canvas
+        let errorOverlay = container.querySelector('.error-overlay');
+        if (!errorOverlay) {
+            errorOverlay = document.createElement('div');
+            errorOverlay.className = 'error-overlay';
+            errorOverlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                color: white;
+                text-align: center;
+                padding: 2rem;
+                box-sizing: border-box;
+                z-index: 1000;
+            `;
+            container.appendChild(errorOverlay);
+        }
+        
+        errorOverlay.innerHTML = `
+            <div class="error-content">
+                <div class="error-icon" style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                <h3 style="color: #ff6b6b; margin-bottom: 1rem;">Erreur de capture audio</h3>
+                <p style="margin-bottom: 2rem; line-height: 1.5;">${message}</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <button class="retry-btn" onclick="visualizerUI.hideError()" style="
+                        background: var(--primary-color);
+                        color: white;
+                        border: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 0.5rem;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">
+                        Fermer
+                    </button>
+                    <button class="test-btn" onclick="visualizerUI.testAudioAccess()" style="
+                        background: transparent;
+                        color: var(--primary-color);
+                        border: 2px solid var(--primary-color);
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 0.5rem;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">
+                        Tester l\'audio
+                    </button>
+                </div>
             </div>
         `;
     }
+    
+    hideError() {
+        const container = document.getElementById('main-visualizer');
+        const errorOverlay = container.querySelector('.error-overlay');
+        if (errorOverlay) {
+            errorOverlay.remove();
+        }
+    }
 
     async testAudioAccess() {
-        console.log('🧪 Testing audio access...');
+        console.log('🧪 Testing system audio access...');
         
         try {
-            // Try to get audio access
+            // Test system/tab audio capture
             const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: false,
+                video: {
+                    width: { max: 1 },
+                    height: { max: 1 }
+                },
                 audio: {
                     echoCancellation: false,
                     autoGainControl: false,
@@ -401,19 +486,28 @@ class VisualizerUI {
             });
             
             const audioTracks = stream.getAudioTracks();
+            const videoTracks = stream.getVideoTracks();
+            
             if (audioTracks.length > 0) {
-                alert('✅ Accès audio réussi!\nSource: Audio de l\'onglet');
-                stream.getTracks().forEach(track => track.stop());
+                const audioLabel = audioTracks[0].label || 'Audio d\'onglet';
+                alert(`✅ Accès audio réussi!\n\nSource: ${audioLabel}\n\n🎵 Vous pouvez maintenant démarrer les visualisations et jouer de la musique sur cet onglet.`);
             } else {
-                // Try microphone fallback
-                const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                alert('✅ Accès audio réussi!\nSource: Microphone');
-                micStream.getTracks().forEach(track => track.stop());
+                alert('⚠️ Partage d\'audio non sélectionné\n\nAssurez-vous de cocher "Partager l\'audio de l\'onglet" dans la popup de permission.');
             }
             
+            // Clean up test stream
+            stream.getTracks().forEach(track => track.stop());
+            
         } catch (error) {
-            console.error('❌ Audio access failed:', error);
-            alert('❌ Échec d\'accès audio. Vérifiez les autorisations du navigateur.');
+            console.error('❌ Audio access test failed:', error);
+            
+            if (error.name === 'NotAllowedError') {
+                alert('❌ Permission refusée\n\nVous avez refusé l\'accès au partage d\'\u00e9cran. Essayez à nouveau et acceptez les permissions.');
+            } else if (error.name === 'NotSupportedError') {
+                alert('❌ Navigateur non supporté\n\nVotre navigateur ne supporte pas la capture audio. Utilisez Chrome ou Edge pour de meilleurs résultats.');
+            } else {
+                alert(`❌ Erreur de test audio\n\n${error.message}\n\nVérifiez que vous utilisez un navigateur compatible (Chrome recommandé).`);
+            }
         }
     }
 

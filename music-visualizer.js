@@ -177,42 +177,96 @@ class MusicVisualizer {
 
     async requestAudioAccess() {
         try {
-            console.log('🔊 Requesting audio capture...');
+            console.log('🔊 Requesting system/tab audio capture...');
             
-            // Check browser support for tab audio capture
+            // First priority: Try to capture tab/system audio via screen sharing
             if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
                 try {
+                    console.log('📺 Requesting screen share for audio capture...');
+                    console.log('📝 Instructions: Sélectionnez "Partager l\'audio de l\'onglet" dans la popup');
+                    
                     const stream = await navigator.mediaDevices.getDisplayMedia({
-                        video: false,
+                        video: {
+                            mediaSource: 'screen',
+                            width: { max: 1 },
+                            height: { max: 1 },
+                            frameRate: { max: 1 }
+                        },
                         audio: {
                             echoCancellation: false,
                             autoGainControl: false,
                             noiseSuppression: false,
-                            latency: 0
+                            latency: 0,
+                            sampleRate: 44100
                         }
                     });
                     
                     const audioTracks = stream.getAudioTracks();
                     if (audioTracks.length > 0) {
-                        console.log('✅ Tab audio capture granted');
+                        console.log('✅ System/tab audio capture granted');
+                        console.log('🎵 Audio source:', audioTracks[0].label);
+                        
+                        // Stop video track since we only need audio
+                        const videoTracks = stream.getVideoTracks();
+                        videoTracks.forEach(track => {
+                            track.stop();
+                            stream.removeTrack(track);
+                        });
+                        
                         return stream;
                     } else {
-                        console.warn('⚠️ No audio tracks in screen capture, trying microphone');
+                        console.warn('⚠️ No audio tracks in screen capture');
                         stream.getTracks().forEach(track => track.stop());
                     }
                 } catch (displayError) {
-                    console.warn('⚠️ Tab audio capture failed, trying microphone fallback:', displayError);
+                    console.warn('⚠️ Screen audio capture failed:', displayError.message);
+                    
+                    // Try system audio capture for Windows/ChromeOS
+                    if (displayError.name !== 'NotAllowedError') {
+                        try {
+                            console.log('🔊 Trying system audio capture...');
+                            const systemStream = await navigator.mediaDevices.getDisplayMedia({
+                                video: true,
+                                audio: {
+                                    echoCancellation: false,
+                                    autoGainControl: false,
+                                    noiseSuppression: false,
+                                    latency: 0,
+                                    sampleRate: 44100
+                                }
+                            });
+                            
+                            const audioTracks = systemStream.getAudioTracks();
+                            if (audioTracks.length > 0) {
+                                console.log('✅ System audio capture granted');
+                                
+                                // Stop video track
+                                const videoTracks = systemStream.getVideoTracks();
+                                videoTracks.forEach(track => {
+                                    track.stop();
+                                    systemStream.removeTrack(track);
+                                });
+                                
+                                return systemStream;
+                            }
+                        } catch (systemError) {
+                            console.warn('⚠️ System audio capture failed:', systemError.message);
+                        }
+                    }
                 }
             }
             
-            // Fallback to microphone
-            console.log('🎤 Requesting microphone access...');
+            // Last resort: Fallback to microphone
+            console.log('🎤 Falling back to microphone access...');
+            console.warn('⚠️ Using microphone instead of system audio - music may not be captured correctly');
+            
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: false,
                     autoGainControl: false,
                     noiseSuppression: false,
-                    latency: 0
+                    latency: 0,
+                    sampleRate: 44100
                 }
             });
             
@@ -220,8 +274,8 @@ class MusicVisualizer {
             return stream;
             
         } catch (error) {
-            console.error('❌ Audio access denied:', error);
-            throw new Error('Audio access required for real-time visualization');
+            console.error('❌ All audio access methods failed:', error);
+            throw new Error(`Audio access required for real-time visualization. Error: ${error.message}`);
         }
     }
 
