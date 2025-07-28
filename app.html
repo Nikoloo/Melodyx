@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melodyx - Application</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="playlist-selector.css">
+    <link rel="stylesheet" href="music-visualizer.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .app-container {
+            min-height: 100vh;
+            background: var(--background-dark);
+            padding-top: 6rem;
+        }
+        
+        .app-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .app-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+        
+        .user-info {
+            background: var(--background-card);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            display: block;
+        }
+        
+        .features-grid-app {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .feature-app {
+            background: var(--background-card);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-app:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+        
+        .feature-app h3 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .feature-app p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .status-coming-soon {
+            background: rgba(255, 107, 107, 0.2);
+            color: var(--accent-color);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+        
+        .status-beta {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .logout-btn {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+        
+        .current-track {
+            background: linear-gradient(45deg, var(--background-card), rgba(29, 185, 84, 0.1));
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(29, 185, 84, 0.3);
+            margin-bottom: 2rem;
+        }
+        
+        .track-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .track-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: var(--background-darker);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .track-details h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .track-details p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .logout-btn {
+                position: static;
+                margin-bottom: 2rem;
+                width: 100%;
+            }
+            
+            .app-container {
+                padding-top: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="container">
+            <button class="logout-btn" onclick="logout()">Déconnexion</button>
+            
+            <div class="app-header">
+                <h1 class="app-title">Bienvenue dans Melodyx</h1>
+                <p class="hero-description">Votre expérience Spotify enrichie commence ici</p>
+            </div>
+            
+            <div class="user-info">
+                <img id="user-avatar" class="user-avatar" src="" alt="Avatar utilisateur" style="display: none;">
+                <h2 id="user-name" style="text-align: center; color: var(--text-primary); margin-bottom: 0.5rem;">Chargement...</h2>
+                <p id="user-email" style="text-align: center; color: var(--text-secondary);"></p>
+            </div>
+            
+            <div class="current-track" id="current-track" style="display: none;">
+                <h3 style="color: var(--primary-color); margin-bottom: 1rem;">🎵 En cours d'écoute</h3>
+                <div class="track-info">
+                    <div class="track-image" id="track-image">
+                        🎵
+                    </div>
+                    <div class="track-details">
+                        <h4 id="track-name">-</h4>
+                        <p id="track-artist">-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="features-grid-app">
+                <div class="feature-app">
+                    <h3>🔀 Vrai mode aléatoire</h3>
+                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border: 1px solid rgba(29, 185, 84, 0.3);">
+                        <small style="color: var(--primary-color); font-weight: 600;">
+                            ✓ 100% aléatoire (pas de biais)<br>
+                            ✓ Utilise vos titres likés<br>
+                            ✓ Crée une playlist temporaire
+                        </small>
+                    </div>
+                    <button id="true-shuffle-btn" class="btn btn-primary" onclick="openPlaylistSelector()">
+                        True Shuffle
+                    </button>
+                </div>
+                
+                <div class="feature-app">
+                    <h3>🎤 Lyrics animés</h3>
+                    <p>Paroles synchronisées avec des effets visuels immersifs</p>
+                    <div class="status-badge status-coming-soon">Bientôt disponible</div>
+                </div>
+                
+                <!-- Visualizer will be inserted here by visualizer-ui.js -->
+                
+                <div class="feature-app">
+                    <h3>📊 Rewind mensuel</h3>
+                    <p>Statistiques détaillées de votre historique d'écoute</p>
+                    <button class="btn btn-primary" onclick="showStats()">Voir mes stats</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="spotify-auth.js"></script>
+    <script src="true-random.js"></script>
+    <script src="playlist-selector.js"></script>
+    <script src="real-audio-analyzer.js"></script>
+    <script src="music-visualizer.js"></script>
+    <script src="visualizer-ui.js"></script>
+    <script>
+        // Vérifier l'authentification au chargement
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!SpotifyAuth.isLoggedIn()) {
+                // Rediriger vers la page d'accueil si pas connecté
+                window.location.href = '/Melodyx/';
+                return;
+            }
+
+            await loadUserProfile();
+            await loadCurrentTrack();
+        });
+
+        // Charger le profil utilisateur
+        async function loadUserProfile() {
+            try {
+                const token = SpotifyAuth.getAccessToken();
+                const response = await fetch('https://api.spotify.com/v1/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('user-name').textContent = user.display_name || 'Utilisateur Spotify';
+                    document.getElementById('user-email').textContent = user.email || '';
+                    
+                    if (user.images && user.images.length > 0) {
+                        const avatar = document.getElementById('user-avatar');
+                        avatar.src = user.images[0].url;
+                        avatar.style.display = 'block';
+                    }
+                } else {
+                    console.error('Erreur lors du chargement du profil');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        // Charger la piste actuelle
+        async function loadCurrentTrack() {
+            try {
+                const token = SpotifyAuth.getAccessToken();
+                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok && response.status !== 204) {
+                    const track = await response.json();
+                    
+                    if (track && track.item) {
+                        document.getElementById('current-track').style.display = 'block';
+                        document.getElementById('track-name').textContent = track.item.name;
+                        document.getElementById('track-artist').textContent = track.item.artists.map(a => a.name).join(', ');
+                        
+                        if (track.item.album.images.length > 0) {
+                            const trackImage = document.getElementById('track-image');
+                            trackImage.innerHTML = `<img src="${track.item.album.images[2].url}" style="width: 100%; height: 100%; border-radius: 8px;">`;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement de la piste actuelle:', error);
+            }
+        }
+
+        // Fonction de déconnexion
+        function logout() {
+            SpotifyAuth.logout();
+        }
+
+        // Afficher les statistiques (placeholder)
+        function showStats() {
+            alert('Fonctionnalité en cours de développement ! 🚧\n\nBientôt disponible :\n• Top artistes du mois\n• Genres préférés\n• Temps d\'écoute\n• Découvertes musicales');
+        }
+
+        // Fonction pour générer la playlist vraiment aléatoire
+        async function generateTrueRandom() {
+            try {
+                await trueRandomMode.generateTrueRandomPlaylist();
+            } catch (error) {
+                console.error('Erreur lors de la génération:', error);
+            }
+        }
+
+        // Rafraîchir la piste actuelle toutes les 30 secondes
+        setInterval(loadCurrentTrack, 30000);
+    </script>
+</body>
+</html>
