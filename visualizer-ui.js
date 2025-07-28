@@ -9,14 +9,7 @@ class VisualizerUI {
         this.isFullscreen = false;
         this.isInitialized = false;
         this.container = null;
-        this.currentMode = 'bubbles';
         this.useRealAudio = true; // Default to real-time audio
-        
-        this.modes = {
-            'bubbles': 'Bulles & Vagues',
-            'minimal': 'Mode Minimal',
-            'intense': 'Mode Intense'
-        };
     }
 
     async initialize() {
@@ -95,9 +88,9 @@ class VisualizerUI {
                     <button class="visualizer-btn" id="test-btn" onclick="visualizerUI.testAudioAccess()" title="Test Audio Access">
                         🎤
                     </button>
-                    <button class="visualizer-btn" id="mode-btn" onclick="visualizerUI.cycleMode()">
-                        Bulles & Vagues
-                    </button>
+                    <div class="visualizer-mode-label" style="color: var(--primary-color); font-weight: bold; font-size: 14px;">
+                        🎆 Mode Synthwave
+                    </div>
                     <button class="visualizer-btn" id="fullscreen-btn" onclick="visualizerUI.toggleFullscreen()">
                         ⛶
                     </button>
@@ -175,10 +168,7 @@ class VisualizerUI {
                 e.preventDefault();
                 this.toggleVisualizer();
             }
-            if (e.key === 'm' && e.ctrlKey) {
-                e.preventDefault();
-                this.cycleMode();
-            }
+            // Synthwave mode only - no mode cycling needed
         });
 
         // Update UI when visualizer data changes
@@ -250,25 +240,6 @@ class VisualizerUI {
         }
     }
 
-    cycleMode() {
-        const modes = Object.keys(this.modes);
-        const currentIndex = modes.indexOf(this.currentMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        
-        this.currentMode = modes[nextIndex];
-        
-        // Only set mode if visualizer exists
-        if (this.visualizer) {
-            this.visualizer.setVisualizationMode(this.currentMode);
-        }
-        
-        const modeBtn = document.getElementById('mode-btn');
-        if (modeBtn) {
-            modeBtn.textContent = this.modes[this.currentMode];
-        }
-        
-        console.log('Visualization mode changed to:', this.currentMode);
-    }
 
     toggleFullscreen() {
         if (this.isFullscreen) {

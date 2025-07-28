@@ -38,7 +38,10 @@ class MusicVisualizer {
         this.beatIntensity = 0;
         this.energyHistory = [];
         this.beatHistory = [];
-        this.bubbles = [];
+        
+        // Stars for background
+        this.stars = [];
+        this.initializeStars();
         
         // Flowing wave system for melody
         this.wavePoints = [];
@@ -57,8 +60,32 @@ class MusicVisualizer {
             background: '#121212'
         };
         
-        // Visualization mode
-        this.visualizationMode = 'bubbles';
+        // Synthwave 3D perspective settings
+        this.camera = {
+            fov: 60,
+            near: 1,
+            far: 1000,
+            position: { x: 0, y: 5, z: 0 }
+        };
+        
+        // Road grid settings
+        this.roadGrid = {
+            width: 40,
+            depth: 60,
+            segments: 20,
+            speed: 0.1,
+            offset: 0
+        };
+        
+        // Retro sun settings
+        this.retroSun = {
+            x: 0,
+            y: -8,
+            z: -50,
+            baseRadius: 15,
+            segments: 20,
+            pulseIntensity: 0
+        };
         
         // Smoothing factors
         this.smoothingFactor = 0.7;
@@ -66,6 +93,37 @@ class MusicVisualizer {
         
         this.setupCanvas();
         this.initializeVisuals();
+    }
+    
+    initializeStars() {
+        // Generate random stars for background
+        this.stars = [];
+        for (let i = 0; i < 200; i++) {
+            this.stars.push({
+                x: (Math.random() - 0.5) * 100,
+                y: Math.random() * 30 - 5,
+                z: (Math.random() - 0.5) * 100,
+                brightness: Math.random(),
+                twinkleSpeed: Math.random() * 0.02 + 0.01
+            });
+        }
+    }
+    
+    // 3D to 2D projection system
+    projectPoint3D(x, y, z, width, height) {
+        // Perspective projection formula
+        const distance = this.camera.fov;
+        const scale = distance / (distance + z - this.camera.position.z);
+        
+        const screenX = (x - this.camera.position.x) * scale + width / 2;
+        const screenY = (y - this.camera.position.y) * scale + height / 2;
+        
+        return {
+            x: screenX,
+            y: screenY,
+            scale: scale,
+            z: z
+        };
     }
 
     setupCanvas() {
@@ -88,14 +146,15 @@ class MusicVisualizer {
     }
 
     initializeVisuals() {
-        // Initialize visualization system
+        // Initialize synthwave visualization system
         this.beatIntensity = 0;
         this.melodyIntensity = 0;
-        this.bassIntensity = 0;
-        this.bubbles = [];
-        this.wavePoints = [];
         
-        console.log('✅ Visualization system initialized');
+        // Reset synthwave elements
+        this.retroSun.pulseIntensity = 0;
+        this.roadGrid.offset = 0;
+        
+        console.log('✅ Synthwave visualization system initialized');
     }
 
     async start() {
@@ -392,22 +451,22 @@ class MusicVisualizer {
             this.melodyIntensity *= 0.98;
             this.amplitude *= 0.95;
             
-            // Remove old bubbles
-            this.bubbles = this.bubbles.filter(bubble => bubble.life > 0.1);
+            // Decay synthwave elements
+            this.retroSun.pulseIntensity *= 0.9;
         }
         
-        // Update existing bubbles
-        this.updateBubbles();
+        // Update stars twinkling
+        this.updateStars();
     }
 
     updateVisualizationFromAudio() {
-        // Map audio levels to visualization parameters
+        // Map audio levels to synthwave visualization parameters
         const energy = this.volume * 0.8 + this.bassLevel * 0.7;
         const tempo = this.calculateTempo();
         const tempoFactor = tempo / 120;
         
-        // Update flowing wave system based on frequency data
-        this.updateFlowingWavesFromAudio(energy, tempoFactor);
+        // Update synthwave elements based on frequency data
+        this.updateSynthwaveElements(energy, tempoFactor);
         
         // Update global amplitude
         this.amplitude = Math.max(0.1, energy);
@@ -415,6 +474,15 @@ class MusicVisualizer {
         // Update beat intensity (smooth decay)
         this.beatIntensity = Math.max(this.beatIntensity * this.beatSmoothingFactor, this.bassLevel);
         this.melodyIntensity = this.midLevel * 0.8 + this.trebleLevel * 0.6;
+        
+        // Update retro sun pulse with bass
+        this.retroSun.pulseIntensity = this.bassLevel;
+        
+        // Update road grid animation
+        this.roadGrid.offset += this.roadGrid.speed * (1 + energy * 0.5);
+        if (this.roadGrid.offset > 1) {
+            this.roadGrid.offset -= 1;
+        }
     }
 
     calculateTempo() {
@@ -458,101 +526,126 @@ class MusicVisualizer {
         animate();
     }
 
+    render3DRoadGrid(width, height) {
+        const grid = this.generateRoadGrid(width, height);
+        
+        this.ctx.save();
+        
+        // Set up neon glow effect
+        this.ctx.shadowBlur = 10 + this.bassLevel * 20;
+        this.ctx.shadowColor = '#00ffff';
+        this.ctx.strokeStyle = `hsla(180, 100%, 50%, ${0.6 + this.beatIntensity * 0.4})`;
+        this.ctx.lineWidth = 1 + this.bassLevel * 2;
+        this.ctx.lineCap = 'round';
+        
+        // Sort grid lines by depth (render far to near)
+        grid.sort((a, b) => a.depth - b.depth);
+        
+        grid.forEach(line => {
+            if (line.points.length > 1) {
+                // Adjust opacity based on distance
+                const depthAlpha = Math.max(0.1, Math.min(1, (50 + line.depth) / 50));
+                this.ctx.globalAlpha = depthAlpha * (0.6 + this.beatIntensity * 0.4);
+                
+                // Draw the line
+                this.ctx.beginPath();
+                this.ctx.moveTo(line.points[0].x, line.points[0].y);
+                
+                for (let i = 1; i < line.points.length; i++) {
+                    this.ctx.lineTo(line.points[i].x, line.points[i].y);
+                }
+                
+                this.ctx.stroke();
+            }
+        });
+        
+        this.ctx.restore();
+    }
+    
     triggerBeat(intensity) {
         this.beatIntensity = Math.min(1, intensity * 2.0);
         
-        // Only create bubbles in certain modes
-        if (this.visualizationMode === 'minimal') return;
+        // In synthwave mode, beats trigger visual effects on the grid and sun
+        this.retroSun.pulseIntensity = Math.max(this.retroSun.pulseIntensity, intensity);
         
-        // Create new bubble at random position
-        const { width, height } = this.canvas.getBoundingClientRect();
-        
-        const bubbleCount = this.visualizationMode === 'intense' ? 3 : Math.ceil(intensity * 2);
-        const maxBubbles = this.visualizationMode === 'intense' ? 25 : 15;
-        
-        for (let i = 0; i < bubbleCount; i++) {
-            const bubble = {
-                x: Math.random() * width,
-                y: height * 0.3 + Math.random() * height * 0.4,
-                size: Math.max(5, 15 + intensity * (this.visualizationMode === 'intense' ? 120 : 100)),
-                maxSize: Math.max(15, 25 + intensity * (this.visualizationMode === 'intense' ? 180 : 150)),
-                life: 1.0,
-                intensity: intensity,
-                hue: Math.random() * 80 + (this.visualizationMode === 'intense' ? 0 : 120),
-                vel: {
-                    x: (Math.random() - 0.5) * (this.visualizationMode === 'intense' ? 6 : 3) * intensity,
-                    y: -Math.random() * 4 - 1 - intensity * 2
-                }
-            };
-            
-            this.bubbles.push(bubble);
-        }
-        
-        // Limit number of bubbles
-        if (this.bubbles.length > maxBubbles) {
-            this.bubbles.splice(0, this.bubbles.length - maxBubbles);
-        }
-        
-        console.log('🥁 Beat triggered with intensity:', intensity.toFixed(2));
+        console.log('🎆 Beat triggered with intensity:', intensity.toFixed(2));
     }
 
-    updateBubbles() {
-        this.bubbles.forEach(bubble => {
-            // Animate bubble growth and movement
-            bubble.size = Math.min(bubble.maxSize, bubble.size + 2);
-            bubble.x += bubble.vel.x;
-            bubble.y += bubble.vel.y;
-            bubble.life *= 0.98; // Fade out
+    updateStars() {
+        this.stars.forEach(star => {
+            // Update star twinkling based on treble frequencies
+            star.brightness += Math.sin(this.time * star.twinkleSpeed) * 0.1 + this.trebleLevel * 0.3;
+            star.brightness = Math.max(0.1, Math.min(1, star.brightness));
+        });
+    }
+    
+    updateSynthwaveElements(energy, tempoFactor) {
+        // This method will be expanded for specific synthwave animations
+        // For now, it's a placeholder for the synthwave update system
+    }
+
+    // Generate 3D road grid points
+    generateRoadGrid(width, height) {
+        const grid = [];
+        const segments = this.roadGrid.segments;
+        const gridWidth = this.roadGrid.width;
+        const gridDepth = this.roadGrid.depth;
+        
+        // Generate horizontal lines (going into distance)
+        for (let i = 0; i <= segments; i++) {
+            const z = -i * (gridDepth / segments) + this.roadGrid.offset * (gridDepth / segments);
+            const line = [];
             
-            // Apply some physics
-            bubble.vel.y += 0.1; // Gravity
-            bubble.vel.x *= 0.99; // Air resistance
+            // Add vibration based on melody
+            const vibration = Math.sin(this.time * 2 + i * 0.3) * this.melodyIntensity * 2;
+            
+            for (let j = -gridWidth/2; j <= gridWidth/2; j += 2) {
+                const point3D = { x: j, y: vibration, z: z };
+                const projected = this.projectPoint3D(point3D.x, point3D.y, point3D.z, width, height);
+                
+                if (projected.z > -50) { // Only render points not too far
+                    line.push(projected);
+                }
+            }
+            
+            if (line.length > 0) {
+                grid.push({ type: 'horizontal', points: line, depth: z });
+            }
+        }
+        
+        // Generate vertical lines (road edges)
+        const roadEdges = [-gridWidth/2, -gridWidth/4, 0, gridWidth/4, gridWidth/2];
+        
+        roadEdges.forEach(x => {
+            const line = [];
+            for (let i = 0; i <= segments; i++) {
+                const z = -i * (gridDepth / segments) + this.roadGrid.offset * (gridDepth / segments);
+                const vibration = Math.sin(this.time * 2 + i * 0.3) * this.melodyIntensity * 2;
+                
+                const point3D = { x: x, y: vibration, z: z };
+                const projected = this.projectPoint3D(point3D.x, point3D.y, point3D.z, width, height);
+                
+                if (projected.z > -50) {
+                    line.push(projected);
+                }
+            }
+            
+            if (line.length > 0) {
+                grid.push({ type: 'vertical', points: line, depth: line[0].z });
+            }
         });
         
-        // Remove dead bubbles
-        this.bubbles = this.bubbles.filter(bubble => bubble.life > 0.05);
-    }
-
-    updateFlowingWavesFromAudio(energy, tempoFactor) {
-        // Update melody intensity based on frequency analysis
-        this.melodyIntensity = this.midLevel * 0.8 + this.trebleLevel * 0.6;
-        
-        // Generate flowing wave points from frequency data
-        const numPoints = 80;
-        this.wavePoints = [];
-        
-        for (let i = 0; i <= numPoints; i++) {
-            const x = (i / numPoints);
-            
-            // Map frequency data to wave points
-            const freqIndex = Math.floor((i / numPoints) * this.bufferLength);
-            const amplitude = this.frequencyData[freqIndex] / 255 || 0;
-            
-            // Combine with smooth waves for organic look
-            const wave1 = Math.sin(x * Math.PI * 4 + this.time * tempoFactor * 2) * amplitude * this.melodyIntensity;
-            const wave2 = Math.sin(x * Math.PI * 6 + this.time * tempoFactor * 1.5) * amplitude * this.melodyIntensity * 0.7;
-            const wave3 = Math.sin(x * Math.PI * 8 + this.time * tempoFactor * 3) * amplitude * this.melodyIntensity * 0.4;
-            
-            // Bass wave (slower, deeper)
-            const bassWave = Math.sin(x * Math.PI * 2 + this.time * tempoFactor * 0.8) * this.bassLevel * 0.9;
-            
-            const y = (wave1 + wave2 + wave3 + bassWave) * 80;
-            
-            this.wavePoints.push({ x: x, y: y });
-        }
+        return grid;
     }
 
     render() {
         const { width, height } = this.canvas.getBoundingClientRect();
         
-        // Clear canvas with beautiful gradient background
-        this.renderBackground(width, height);
+        // Clear canvas with synthwave gradient background
+        this.renderSynthwaveBackground(width, height);
         
-        // 🌊 Render flowing waves (melody)
-        this.renderFlowingWaves(width, height);
-        
-        // 🫧 Render percussion bubbles
-        this.renderBubbles(width, height);
+        // 🎆 Render synthwave scene
+        this.renderSynthwaveScene(width, height);
         
         // 📊 Render real-time audio info
         this.renderMinimalTrackInfo(width, height);
@@ -563,50 +656,45 @@ class MusicVisualizer {
         }
     }
 
-    renderBackground(width, height) {
-        // Beautiful animated gradient background
-        const time = this.time * 0.5;
+    renderSynthwaveBackground(width, height) {
+        // Synthwave gradient: dark purple to magenta/cyan
+        const gradient = this.ctx.createLinearGradient(0, 0, 0, height);
         
-        // Create radial gradient that shifts with music
-        const centerX = width * 0.5 + Math.sin(time) * 100;
-        const centerY = height * 0.5 + Math.cos(time * 0.7) * 50;
+        // Dynamic colors based on audio
+        const bassInfluence = this.bassLevel * 50;
+        const trebleInfluence = this.trebleLevel * 30;
         
-        const gradient = this.ctx.createRadialGradient(
-            centerX, centerY, 0,
-            centerX, centerY, Math.max(width, height) * 0.8
-        );
-        
-        // Dynamic colors based on real-time audio analysis
-        const hue1 = 240 + this.bassLevel * 80; // Blue to purple based on bass
-        const hue2 = 200 + this.trebleLevel * 60; // Blue to cyan based on treble
-        
-        gradient.addColorStop(0, `hsla(${hue1}, 70%, 20%, 0.8)`);
-        gradient.addColorStop(0.5, `hsla(${hue2}, 50%, 15%, 0.6)`);
-        gradient.addColorStop(1, `hsla(220, 30%, 8%, 1)`);
+        // Classic synthwave colors with audio reactivity
+        gradient.addColorStop(0, `hsla(280, 80%, ${5 + trebleInfluence}%, 1)`);
+        gradient.addColorStop(0.3, `hsla(300, 70%, ${8 + bassInfluence}%, 1)`);
+        gradient.addColorStop(0.7, `hsla(320, 60%, ${3 + this.midLevel * 20}%, 1)`);
+        gradient.addColorStop(1, `hsla(280, 90%, 2%, 1)`);
         
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, width, height);
         
-        // Add subtle moving particles in background
-        this.renderBackgroundParticles(width, height);
+        // Render stars
+        this.renderStars(width, height);
     }
 
-    renderBackgroundParticles(width, height) {
-        const numParticles = 20;
-        
+    renderStars(width, height) {
         this.ctx.save();
-        this.ctx.globalAlpha = 0.05 + this.midLevel * 0.3;
         
-        for (let i = 0; i < numParticles; i++) {
-            const x = (Math.sin(this.time * 0.2 + i) * 0.5 + 0.5) * width;
-            const y = (Math.cos(this.time * 0.15 + i) * 0.5 + 0.5) * height;
-            const size = Math.max(0.5, 2 + Math.sin(this.time + i) * 3); // Ensure positive radius
+        this.stars.forEach(star => {
+            const projected = this.projectPoint3D(star.x, star.y, star.z, width, height);
             
-            this.ctx.beginPath();
-            this.ctx.arc(x, y, size, 0, Math.PI * 2);
-            this.ctx.fillStyle = `hsla(${180 + i * 10}, 60%, 60%, 0.5)`;
-            this.ctx.fill();
-        }
+            if (projected.z > -80 && projected.x > 0 && projected.x < width && projected.y > 0 && projected.y < height) {
+                const size = Math.max(0.5, projected.scale * star.brightness * 2);
+                const alpha = Math.max(0.1, star.brightness * projected.scale);
+                
+                this.ctx.globalAlpha = alpha;
+                this.ctx.fillStyle = `hsla(${180 + star.brightness * 60}, 70%, 80%, 1)`;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(projected.x, projected.y, size, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        });
         
         this.ctx.restore();
     }
@@ -638,117 +726,93 @@ class MusicVisualizer {
         this.ctx.restore();
     }
 
-    renderFlowingWaves(width, height) {
-        if (this.wavePoints.length === 0) return;
+    renderSynthwaveScene(width, height) {
+        // Render retro sun
+        this.renderRetroSun(width, height);
         
-        const centerY = height * 0.5;
+        // Render mountains silhouette
+        this.renderMountains(width, height);
         
-        this.ctx.save();
-        
-        // Render different wave styles based on mode
-        switch (this.visualizationMode) {
-            case 'minimal':
-                // Single, clean wave
-                this.renderWaveLayer(width, height, centerY, 0.6, 2, 'hsla(200, 50%, 60%, 0.8)');
-                break;
-                
-            case 'intense':
-                // Multiple chaotic waves
-                this.renderWaveLayer(width, height, centerY, 1.2, 6, 'hsla(0, 80%, 50%, 0.7)');
-                this.renderWaveLayer(width, height, centerY, 0.9, 4, 'hsla(60, 70%, 60%, 0.5)');
-                this.renderWaveLayer(width, height, centerY, 0.6, 3, 'hsla(180, 60%, 70%, 0.4)');
-                this.renderWaveLayer(width, height, centerY, 0.3, 2, 'hsla(300, 50%, 80%, 0.3)');
-                break;
-                
-            case 'bubbles':
-            default:
-                // Balanced wave layers
-                this.renderWaveLayer(width, height, centerY, 0.8, 4, 'hsla(180, 70%, 50%, 0.6)');
-                this.renderWaveLayer(width, height, centerY, 0.6, 3, 'hsla(200, 60%, 60%, 0.4)');
-                this.renderWaveLayer(width, height, centerY, 0.4, 2, 'hsla(220, 50%, 70%, 0.3)');
-                break;
-        }
-        
-        this.ctx.restore();
+        // Render 3D road grid
+        this.render3DRoadGrid(width, height);
     }
 
-    renderWaveLayer(width, height, centerY, intensityMul, lineWidth, color) {
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = lineWidth;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+    renderRetroSun(width, height) {
+        const sun = this.retroSun;
+        const projected = this.projectPoint3D(sun.x, sun.y, sun.z, width, height);
         
-        // Add glow effect
-        this.ctx.shadowBlur = 15;
-        this.ctx.shadowColor = color;
-        
-        this.ctx.beginPath();
-        
-        for (let i = 0; i < this.wavePoints.length; i++) {
-            const point = this.wavePoints[i];
-            const x = point.x * width;
-            const y = centerY + point.y * intensityMul;
+        if (projected.z < -10) { // Only render if behind camera
+            const baseRadius = sun.baseRadius * projected.scale;
+            const pulsedRadius = baseRadius * (1 + sun.pulseIntensity * 0.5);
             
-            if (i === 0) {
-                this.ctx.moveTo(x, y);
-            } else {
-                // Use bezier curves for smooth flowing effect
-                const prevPoint = this.wavePoints[i - 1];
-                const prevX = prevPoint.x * width;
-                const prevY = centerY + prevPoint.y * intensityMul;
-                
-                const cpX = (x + prevX) / 2;
-                const cpY = (y + prevY) / 2;
-                
-                this.ctx.quadraticCurveTo(prevX, prevY, cpX, cpY);
-            }
-        }
-        
-        this.ctx.stroke();
-        this.ctx.shadowBlur = 0;
-    }
-
-    renderBubbles(width, height) {
-        this.bubbles.forEach(bubble => {
             this.ctx.save();
             
-            // Set opacity based on bubble life
-            this.ctx.globalAlpha = bubble.life * 0.8;
-            
-            // Create radial gradient for bubble
+            // Create radial gradient for sun
             const gradient = this.ctx.createRadialGradient(
-                bubble.x, bubble.y, 0,
-                bubble.x, bubble.y, bubble.size
+                projected.x, projected.y, 0,
+                projected.x, projected.y, pulsedRadius
             );
             
-            const hue = bubble.hue + this.time * 20;
-            gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.8)`);
-            gradient.addColorStop(0.7, `hsla(${hue + 20}, 60%, 50%, 0.4)`);
-            gradient.addColorStop(1, `hsla(${hue + 40}, 50%, 40%, 0)`);
+            // Synthwave sun colors: orange to red to purple
+            gradient.addColorStop(0, `hsla(20, 100%, ${70 + sun.pulseIntensity * 30}%, 1)`);
+            gradient.addColorStop(0.4, `hsla(340, 90%, ${60 + sun.pulseIntensity * 20}%, 0.8)`);
+            gradient.addColorStop(0.8, `hsla(300, 80%, ${40 + sun.pulseIntensity * 15}%, 0.4)`);
+            gradient.addColorStop(1, 'hsla(280, 70%, 20%, 0)');
             
-            // Draw bubble with glow
-            this.ctx.shadowBlur = 20;
-            this.ctx.shadowColor = `hsla(${hue}, 70%, 60%, 0.6)`;
-            
-            this.ctx.beginPath();
-            this.ctx.arc(bubble.x, bubble.y, Math.max(1, bubble.size), 0, Math.PI * 2);
+            // Draw main sun circle with glow
+            this.ctx.shadowBlur = 30 + sun.pulseIntensity * 20;
+            this.ctx.shadowColor = '#ff6b00';
             this.ctx.fillStyle = gradient;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(projected.x, projected.y, pulsedRadius, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Add inner highlight
+            // Draw horizontal scan lines
             this.ctx.shadowBlur = 0;
-            this.ctx.beginPath();
-            this.ctx.arc(
-                bubble.x - bubble.size * 0.3,
-                bubble.y - bubble.size * 0.3,
-                Math.max(0.5, bubble.size * 0.2),
-                0, Math.PI * 2
-            );
-            this.ctx.fillStyle = `hsla(${hue}, 30%, 80%, ${bubble.life * 0.5})`;
-            this.ctx.fill();
+            this.ctx.strokeStyle = `hsla(20, 100%, 80%, ${0.3 + sun.pulseIntensity * 0.4})`;
+            this.ctx.lineWidth = 1;
+            
+            for (let i = 0; i < sun.segments; i++) {
+                const y = projected.y - pulsedRadius + (i / sun.segments) * (pulsedRadius * 2);
+                const lineWidth = Math.sqrt(pulsedRadius * pulsedRadius - Math.pow(y - projected.y, 2)) * 2;
+                
+                if (lineWidth > 0) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(projected.x - lineWidth/2, y);
+                    this.ctx.lineTo(projected.x + lineWidth/2, y);
+                    this.ctx.stroke();
+                }
+            }
             
             this.ctx.restore();
-        });
+        }
+    }
+
+    renderMountains(width, height) {
+        // Simple mountain silhouettes at the horizon
+        const horizonY = height * 0.6;
+        
+        this.ctx.save();
+        this.ctx.fillStyle = `hsla(280, 50%, ${5 + this.midLevel * 10}%, 0.8)`;
+        
+        // Create mountain silhouette path
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, horizonY);
+        
+        // Generate mountain peaks with some audio reactivity
+        for (let x = 0; x <= width; x += 20) {
+            const peak = Math.sin(x * 0.01) * 40 + Math.sin(x * 0.003) * 80;
+            const audioVariation = Math.sin(x * 0.02 + this.time) * this.trebleLevel * 20;
+            this.ctx.lineTo(x, horizonY - peak - audioVariation);
+        }
+        
+        this.ctx.lineTo(width, height);
+        this.ctx.lineTo(0, height);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        this.ctx.restore();
     }
 
 
@@ -769,10 +833,10 @@ class MusicVisualizer {
         this.ctx.fillText(`Frames: ${this.frameCount}`, width - 110, height - 25);
     }
 
-    // Public API methods
+    // Public API methods - Synthwave mode only
     setVisualizationMode(mode) {
-        this.visualizationMode = mode;
-        console.log('Visualization mode:', mode);
+        // Synthwave is the only mode now
+        console.log('Synthwave mode active');
     }
 
     getVisualizationData() {
