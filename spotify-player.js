@@ -823,8 +823,21 @@ class SpotifyPlayer {
                     newDevice: deviceId
                 });
                 
-                // Optionnel: transférer automatiquement la lecture
-                // await this.webApiService.transferPlaybackToDevice(deviceId, true);
+                // Transférer automatiquement la lecture vers Melodyx
+                logger.info('SpotifyPlayer: Transfert automatique de la lecture vers Melodyx');
+                await this.webApiService.transferPlaybackToDevice(deviceId, true);
+                
+                // Afficher une notification temporaire
+                this.showTransferNotification(currentState.device.name);
+            } else if (!currentState || !currentState.is_playing) {
+                // S'il n'y a pas de lecture active, essayer de transférer quand même
+                // au cas où Spotify est ouvert mais en pause sur un autre appareil
+                logger.info('SpotifyPlayer: Tentative de transfert automatique (pas de lecture active)');
+                try {
+                    await this.webApiService.transferPlaybackToDevice(deviceId, false);
+                } catch (transferError) {
+                    logger.debug('SpotifyPlayer: Pas de session Spotify active à transférer', transferError);
+                }
             }
             
         } catch (error) {
@@ -1677,6 +1690,43 @@ class SpotifyPlayer {
                 </div>
             `;
         }
+    }
+    
+    // Afficher une notification de transfert
+    showTransferNotification(previousDeviceName) {
+        logger.info('SpotifyPlayer: Affichage notification de transfert', { previousDeviceName });
+        
+        // Créer la notification si elle n'existe pas
+        let notification = document.getElementById('transfer-notification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'transfer-notification';
+            notification.className = 'transfer-notification';
+            document.body.appendChild(notification);
+        }
+        
+        // Mettre à jour le contenu
+        notification.innerHTML = `
+            <div class="notification-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                <span>Lecture transférée depuis ${previousDeviceName} vers Melodyx</span>
+            </div>
+        `;
+        
+        // Afficher avec animation
+        notification.classList.add('show');
+        
+        // Masquer après 3 secondes
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
     }
 }
 

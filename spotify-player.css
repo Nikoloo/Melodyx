@@ -1120,3 +1120,49 @@
     outline-offset: 2px;
     border-radius: 4px;
 }
+
+/* Notification de transfert */
+.transfer-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.transfer-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.transfer-notification .notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--primary-color);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.transfer-notification svg {
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .transfer-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+    
+    .transfer-notification .notification-content {
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+}
