@@ -16,7 +16,8 @@ const SpotifyAuth = {
             'playlist-read-private',
             'playlist-read-collaborative',
             'playlist-modify-public',
-            'playlist-modify-private'
+            'playlist-modify-private',
+            'streaming'
         ].join(' '),
         responseType: 'code',
         showDialog: true
