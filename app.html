@@ -6,7 +6,6 @@
     <title>Melodyx - Application</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="playlist-selector.css">
-    <link rel="stylesheet" href="music-visualizer.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -216,12 +215,16 @@
                     <div class="status-badge status-coming-soon">Bientôt disponible</div>
                 </div>
                 
-                <!-- Visualizer will be inserted here by visualizer-ui.js -->
+                <div class="feature-app">
+                    <h3>🌈 Visualisations musicales</h3>
+                    <p>Visualisations immersives synchronisées avec votre musique</p>
+                    <div class="status-badge status-coming-soon">Bientôt disponible</div>
+                </div>
                 
                 <div class="feature-app">
                     <h3>📊 Rewind mensuel</h3>
                     <p>Statistiques détaillées de votre historique d'écoute</p>
-                    <button class="btn btn-primary" onclick="showStats()">Voir mes stats</button>
+                    <div class="status-badge status-coming-soon">Bientôt disponible</div>
                 </div>
             </div>
         </div>
@@ -230,9 +233,6 @@
     <script src="spotify-auth.js"></script>
     <script src="true-random.js"></script>
     <script src="playlist-selector.js"></script>
-    <script src="real-audio-analyzer.js"></script>
-    <script src="music-visualizer.js"></script>
-    <script src="visualizer-ui.js"></script>
     <script>
         // Vérifier l'authentification au chargement
         document.addEventListener('DOMContentLoaded', async () => {
@@ -308,10 +308,7 @@
             SpotifyAuth.logout();
         }
 
-        // Afficher les statistiques (placeholder)
-        function showStats() {
-            alert('Fonctionnalité en cours de développement ! 🚧\n\nBientôt disponible :\n• Top artistes du mois\n• Genres préférés\n• Temps d\'écoute\n• Découvertes musicales');
-        }
+        // Fonction supprimée - Rewind mensuel maintenant en "Bientôt disponible"
 
         // Fonction pour générer la playlist vraiment aléatoire
         async function generateTrueRandom() {
