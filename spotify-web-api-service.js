@@ -288,10 +288,85 @@ class SpotifyWebAPIService {
             q: query,
             type: typeParam,
             limit: limit.toString(),
-            offset: offset.toString()
+            offset: offset.toString(),
+            market: 'FR'
         });
         
         return this.apiRequest(`/search?${params}`);
+    }
+
+    // Recherche rapide avec nettoyage des résultats
+    async quickSearch(query, type = 'track', limit = 10) {
+        logger.debug('SpotifyWebAPIService: Quick search', { query, type, limit });
+        
+        if (!query || query.trim().length < 2) {
+            return { [type + 's']: { items: [] } };
+        }
+        
+        try {
+            const results = await this.search(query.trim(), [type], limit);
+            return results;
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Quick search error', error);
+            return { [type + 's']: { items: [] } };
+        }
+    }
+
+    // Recherche avec suggestions et auto-complétion
+    async searchWithSuggestions(query, limit = 15) {
+        logger.debug('SpotifyWebAPIService: Search with suggestions', { query, limit });
+        
+        if (!query || query.trim().length < 2) {
+            return {
+                tracks: [],
+                artists: [],
+                albums: [],
+                playlists: []
+            };
+        }
+        
+        try {
+            // Recherche multi-type
+            const results = await this.search(query.trim(), ['track', 'artist', 'album', 'playlist'], limit);
+            
+            return {
+                tracks: results.tracks?.items || [],
+                artists: results.artists?.items || [],
+                albums: results.albums?.items || [],
+                playlists: results.playlists?.items || []
+            };
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Search with suggestions error', error);
+            return {
+                tracks: [],
+                artists: [],
+                albums: [],
+                playlists: []
+            };
+        }
+    }
+
+    // Recherche populaire et tendances
+    async getPopularContent(type = 'track', limit = 20) {
+        logger.debug('SpotifyWebAPIService: Get popular content', { type, limit });
+        
+        try {
+            // Utiliser des termes de recherche populaires selon le type
+            const popularQueries = {
+                track: ['pop', 'hits', 'top', 'trending'],
+                artist: ['popular', 'trending', 'top'],
+                album: ['new', 'popular', 'hits'],
+                playlist: ['top', 'hits', 'popular']
+            };
+            
+            const randomQuery = popularQueries[type][Math.floor(Math.random() * popularQueries[type].length)];
+            const results = await this.search(randomQuery, [type], limit);
+            
+            return results[type + 's']?.items || [];
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Get popular content error', error);
+            return [];
+        }
     }
 
     // === PLAYLISTS ===
@@ -301,6 +376,63 @@ class SpotifyWebAPIService {
         logger.debug('SpotifyWebAPIService: Get user playlists', { limit });
         
         return this.apiRequest(`/me/playlists?limit=${limit}&offset=${offset}`);
+    }
+
+    // Obtenir toutes les playlists de l'utilisateur (avec pagination automatique)
+    async getAllUserPlaylists() {
+        logger.debug('SpotifyWebAPIService: Get all user playlists');
+        
+        try {
+            let allPlaylists = [];
+            let offset = 0;
+            const limit = 50;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const response = await this.getUserPlaylists(limit, offset);
+                const playlists = response.items || [];
+                
+                allPlaylists.push(...playlists);
+                
+                hasMore = playlists.length === limit && response.next;
+                offset += limit;
+                
+                // Sécurité: éviter les boucles infinies
+                if (offset > 1000) break;
+            }
+            
+            logger.info('SpotifyWebAPIService: Retrieved all playlists', { count: allPlaylists.length });
+            return allPlaylists;
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error getting all playlists', error);
+            return [];
+        }
+    }
+
+    // Rechercher dans les playlists de l'utilisateur
+    async searchUserPlaylists(query) {
+        logger.debug('SpotifyWebAPIService: Search user playlists', { query });
+        
+        if (!query || query.trim().length < 1) {
+            return await this.getAllUserPlaylists();
+        }
+        
+        try {
+            const allPlaylists = await this.getAllUserPlaylists();
+            const searchTerm = query.toLowerCase().trim();
+            
+            const filteredPlaylists = allPlaylists.filter(playlist => {
+                return playlist.name.toLowerCase().includes(searchTerm) ||
+                       (playlist.description && playlist.description.toLowerCase().includes(searchTerm));
+            });
+            
+            return filteredPlaylists;
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error searching playlists', error);
+            return [];
+        }
     }
 
     // Obtenir une playlist

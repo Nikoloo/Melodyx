@@ -1,23 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git remote add:*)",
-      "Bash(git push:*)",
-      "WebFetch(domain:nikoloo.github.io)",
-      "Bash(python:*)",
-      "Bash(git config:*)",
-      "Bash(git pull:*)",
-      "Bash(git checkout:*)",
-      "Bash(mv:*)",
-<<<<<<< HEAD
-      "WebFetch(domain:github.com)",
-      "Bash(node:*)"
-=======
-      "WebFetch(domain:github.com)"
->>>>>>> ae185100380d24165836bb7f1b858252aa9346df
+      "WebFetch(domain:developer.spotify.com)"
     ],
     "deny": []
   }
