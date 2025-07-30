@@ -6,6 +6,7 @@ class PlaylistSelector {
         this.isLoading = false;
         this.selectedPlaylist = null;
         this.currentSort = 'alphabetical'; // alphabetical, count
+        this.currentView = 'grid'; // grid, list, dense
     }
 
     // Récupérer toutes les playlists de l'utilisateur
@@ -167,6 +168,65 @@ class PlaylistSelector {
     }
 
     // Générer la grille de playlists
+    // Méthode unifiée pour rendre les playlists selon la vue actuelle
+    renderPlaylistView() {
+        switch (this.currentView) {
+            case 'list':
+                return this.renderPlaylistList();
+            case 'dense':
+                return this.renderPlaylistDense();
+            default:
+                return this.renderPlaylistGrid();
+        }
+    }
+    
+    // Vue liste compacte
+    renderPlaylistList() {
+        if (this.filteredPlaylists.length === 0) {
+            return '<div class="no-playlists">Aucune playlist trouvée</div>';
+        }
+        
+        return this.filteredPlaylists.map(playlist => `
+            <div class="playlist-row" data-playlist-id="${playlist.id}">
+                <div class="playlist-thumbnail">
+                    ${playlist.image 
+                        ? `<img src="${playlist.image}" alt="${playlist.name}" loading="lazy">` 
+                        : '<div class="placeholder-image">🎵</div>'
+                    }
+                </div>
+                <div class="playlist-info">
+                    <h4 class="playlist-name">${playlist.name}</h4>
+                    <p class="playlist-meta">${playlist.trackCount} titres • ${playlist.owner}</p>
+                </div>
+                <div class="playlist-actions">
+                    <span class="track-count">${playlist.trackCount}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Vue grille dense
+    renderPlaylistDense() {
+        if (this.filteredPlaylists.length === 0) {
+            return '<div class="no-playlists">Aucune playlist trouvée</div>';
+        }
+        
+        return this.filteredPlaylists.map(playlist => `
+            <div class="playlist-card dense" data-playlist-id="${playlist.id}">
+                <div class="playlist-image-container">
+                    ${playlist.image 
+                        ? `<img src="${playlist.image}" alt="${playlist.name}" class="playlist-image" loading="lazy">` 
+                        : '<div class="playlist-placeholder">🎵</div>'
+                    }
+                </div>
+                <div class="playlist-details">
+                    <h4 class="playlist-title">${playlist.name}</h4>
+                    <p class="playlist-count">${playlist.trackCount} titres</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
     renderPlaylistGrid() {
         const html = this.filteredPlaylists.map(playlist => `
             <div class="playlist-card" data-playlist-id="${playlist.id}">
@@ -198,10 +258,15 @@ class PlaylistSelector {
 
     // Attacher les événements aux cartes de playlist
     attachPlaylistEvents() {
-        document.querySelectorAll('.playlist-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const playlistId = card.getAttribute('data-playlist-id');
-                this.selectPlaylist(playlistId);
+        // Sélecteur générique pour tous les types de cartes/lignes
+        const selectors = ['.playlist-card', '.playlist-row'];
+        
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(element => {
+                element.addEventListener('click', () => {
+                    const playlistId = element.getAttribute('data-playlist-id');
+                    this.selectPlaylist(playlistId);
+                });
             });
         });
     }
@@ -210,15 +275,18 @@ class PlaylistSelector {
     selectPlaylist(playlistId) {
         console.log('selectPlaylist appelé avec ID:', playlistId);
         
-        // Retirer la sélection précédente
-        document.querySelectorAll('.playlist-card').forEach(card => {
-            card.classList.remove('selected');
+        // Retirer la sélection précédente de tous les éléments
+        const selectors = ['.playlist-card', '.playlist-row'];
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(element => {
+                element.classList.remove('selected');
+            });
         });
 
-        // Ajouter la sélection à la nouvelle carte
-        const selectedCard = document.querySelector(`[data-playlist-id="${playlistId}"]`);
-        if (selectedCard) {
-            selectedCard.classList.add('selected');
+        // Ajouter la sélection à la nouvelle carte/ligne
+        const selectedElement = document.querySelector(`[data-playlist-id="${playlistId}"]`);
+        if (selectedElement) {
+            selectedElement.classList.add('selected');
             this.selectedPlaylist = this.filteredPlaylists.find(p => p.id === playlistId);
             
             console.log('Playlist sélectionnée:', this.selectedPlaylist);
@@ -230,7 +298,7 @@ class PlaylistSelector {
                 shuffleBtn.textContent = `Shuffle "${this.selectedPlaylist.name}"`;
             }
         } else {
-            console.error('Carte de playlist non trouvée pour ID:', playlistId);
+            console.error('Element de playlist non trouvé pour ID:', playlistId);
         }
     }
 
@@ -280,14 +348,30 @@ class PlaylistSelector {
                             <option value="count">🔢 Nombre de titres</option>
                         </select>
                     </div>
+                    
+                    <div class="view-controls">
+                        <label class="view-label">👁️ Vue:</label>
+                        <div class="view-buttons">
+                            <button class="view-btn ${this.currentView === 'grid' ? 'active' : ''}" data-view="grid" title="Vue grille">
+                                ⬜
+                            </button>
+                            <button class="view-btn ${this.currentView === 'list' ? 'active' : ''}" data-view="list" title="Vue liste">
+                                ☰
+                            </button>
+                            <button class="view-btn ${this.currentView === 'dense' ? 'active' : ''}" data-view="dense" title="Vue dense">
+                                ▦
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="playlist-count">
                         <span id="playlist-count">${this.filteredPlaylists.length} playlists</span>
                     </div>
                 </div>
                 
                 <div class="modal-3d-content">
-                    <div class="playlist-grid" id="playlist-grid">
-                        ${this.renderPlaylistGrid()}
+                    <div class="playlist-container ${this.currentView}" id="playlist-grid">
+                        ${this.renderPlaylistView()}
                     </div>
                 </div>
                 
@@ -303,6 +387,23 @@ class PlaylistSelector {
         `;
     }
     
+    // Méthode pour changer de vue
+    changeView(viewType) {
+        this.currentView = viewType;
+        localStorage.setItem('playlist-view', viewType);
+        
+        // Mettre à jour les boutons actifs
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-view') === viewType) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Ré-rendre les playlists avec la nouvelle vue
+        this.refreshGrid();
+    }
+    
     // Nouvelle méthode pour initialiser les événements en mode page
     initializePageEvents() {
         // Ré-attacher les événements après injection du HTML
@@ -313,20 +414,25 @@ class PlaylistSelector {
             });
         }
         
+        // Attacher les événements des boutons de vue
+        const viewButtons = document.querySelectorAll('.view-btn');
+        viewButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const view = e.target.getAttribute('data-view');
+                this.changeView(view);
+            });
+        });
+        
+        // Charger la préférence de vue sauvegardée
+        const savedView = localStorage.getItem('playlist-view');
+        if (savedView && ['grid', 'list', 'dense'].includes(savedView)) {
+            this.currentView = savedView;
+        }
+        
         // Attacher les événements de sélection de playlist
         this.attachPlaylistEvents();
     }
     
-    // Méthode pour attacher les événements aux cartes de playlist
-    attachPlaylistEvents() {
-        const playlistCards = document.querySelectorAll('.playlist-card-3d');
-        playlistCards.forEach(card => {
-            card.addEventListener('click', () => {
-                const playlistId = card.dataset.playlistId;
-                this.selectPlaylist(playlistId);
-            });
-        });
-    }
 
 
     // Fonctions de tri
@@ -365,7 +471,11 @@ class PlaylistSelector {
         const counter = document.getElementById('playlist-count');
         
         if (grid) {
-            grid.innerHTML = this.renderPlaylistGrid();
+            // Mettre à jour la classe du container
+            grid.className = `playlist-container ${this.currentView}`;
+            grid.innerHTML = this.renderPlaylistView();
+            // Ré-attacher les événements
+            setTimeout(() => this.attachPlaylistEvents(), 0);
         }
         
         if (counter) {
