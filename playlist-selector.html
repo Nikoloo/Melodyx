@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>True Shuffle - Sélection de Playlist | Melodyx</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="playlist-selector.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .page-container {
+            min-height: 100vh;
+            background: var(--background-dark);
+            padding: 2rem 0;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 0 2rem;
+        }
+        
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+        
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .back-button {
+            position: fixed;
+            top: 2rem;
+            left: 2rem;
+            background: var(--background-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 0.8rem 1.5rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 1000;
+        }
+        
+        .back-button:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .playlist-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        /* Adapter les styles existants pour une page complète */
+        .modal-3d-container {
+            position: relative;
+            background: transparent;
+            backdrop-filter: none;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            max-width: none;
+            max-height: none;
+            height: auto;
+            transform: none;
+        }
+        
+        .modal-3d-content {
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            max-height: none;
+            overflow: visible;
+        }
+        
+        /* Override modal styles for page layout */
+        .playlist-selector-modal {
+            position: static;
+            opacity: 1;
+            visibility: visible;
+            z-index: auto;
+            perspective: none;
+        }
+        
+        .modal-3d-overlay {
+            background: transparent;
+            backdrop-filter: none;
+            display: block;
+            position: static;
+        }
+        
+        @media (max-width: 768px) {
+            .back-button {
+                position: static;
+                margin: 0 2rem 2rem 2rem;
+                width: fit-content;
+            }
+            
+            .page-header {
+                margin-bottom: 2rem;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .page-container {
+                padding: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <a href="app.html" class="back-button">
+            ← Retour à l'application
+        </a>
+        
+        <div class="page-header">
+            <h1 class="page-title">True Shuffle</h1>
+            <p class="page-subtitle">
+                Sélectionnez une playlist pour créer un mélange vraiment aléatoire. 
+                Contrairement au mode aléatoire de Spotify, chaque titre a exactement 
+                la même chance d'être joué.
+            </p>
+        </div>
+        
+        <div class="playlist-content">
+            <!-- Le contenu sera injecté ici par playlist-selector.js -->
+            <div id="playlist-container">
+                <div class="loading-spinner-3d">
+                    <div class="spinner-cube">
+                        <div class="cube-face cube-front"></div>
+                        <div class="cube-face cube-back"></div>
+                        <div class="cube-face cube-right"></div>
+                        <div class="cube-face cube-left"></div>
+                        <div class="cube-face cube-top"></div>
+                        <div class="cube-face cube-bottom"></div>
+                    </div>
+                </div>
+                <h2 class="loading-title">Récupération de vos playlists...</h2>
+                <p class="loading-subtitle">Veuillez patienter</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="spotify-auth.js"></script>
+    <script src="true-random.js"></script>
+    <script src="playlist-selector.js"></script>
+    <script>
+        // Vérifier l'authentification au chargement
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!SpotifyAuth.isLoggedIn()) {
+                // Rediriger vers la page d'accueil si pas connecté
+                window.location.href = '/Melodyx/';
+                return;
+            }
+
+            // Initialiser le sélecteur de playlist en mode page
+            await initializePlaylistSelectorPage();
+        });
+
+        // Fonction pour initialiser le sélecteur en mode page
+        async function initializePlaylistSelectorPage() {
+            try {
+                // Adapter le fonctionnement pour une page au lieu d'un modal
+                const container = document.getElementById('playlist-container');
+                
+                // Créer une instance du sélecteur
+                const selector = new PlaylistSelector();
+                
+                // Récupérer les playlists
+                await selector.fetchUserPlaylists();
+                
+                // Afficher le sélecteur directement dans le container
+                container.innerHTML = selector.generatePlaylistSelectorHTML();
+                
+                // Initialiser les événements
+                selector.initializePageEvents();
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'initialisation:', error);
+                document.getElementById('playlist-container').innerHTML = `
+                    <div class="error-state">
+                        <h3>Erreur de chargement</h3>
+                        <p>${error.message}</p>
+                        <button onclick="window.location.reload()" class="btn btn-primary">
+                            Réessayer
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

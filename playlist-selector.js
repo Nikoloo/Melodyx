@@ -82,19 +82,8 @@ class PlaylistSelector {
 
     // Ouvrir le sélecteur de playlist avec animation 3D
     async openSelector() {
-        try {
-            // Créer le modal avec animation
-            this.showLoadingModal();
-            
-            // Récupérer les playlists
-            await this.fetchUserPlaylists();
-            
-            // Remplacer le contenu du modal
-            this.showPlaylistSelector();
-            
-        } catch (error) {
-            this.showErrorModal(error.message);
-        }
+        // Rediriger vers la page dédiée au lieu d'ouvrir un modal
+        window.location.href = 'playlist-selector.html';
     }
 
     // Modal de chargement initial
@@ -273,16 +262,70 @@ class PlaylistSelector {
         }
     }
 
-    // Fermer le sélecteur
+    // Fermer le sélecteur (mode page)
     closeSelector() {
-        const modal = document.getElementById('playlist-selector-modal');
-        if (modal) {
-            modal.classList.add('modal-closing');
-            setTimeout(() => {
-                modal.remove();
-            }, 300);
+        // En mode page, rediriger vers app.html
+        window.location.href = 'app.html';
+    }
+    
+    // Nouvelle méthode pour générer le HTML du sélecteur pour une page
+    generatePlaylistSelectorHTML() {
+        return `
+            <div class="modal-3d-container">
+                <div class="modal-3d-toolbar">
+                    <div class="sort-controls">
+                        <label class="sort-label">📋 Trier par:</label>
+                        <select class="sort-dropdown" id="sort-dropdown">
+                            <option value="alphabetical" selected>🔤 Ordre alphabétique</option>
+                            <option value="count">🔢 Nombre de titres</option>
+                        </select>
+                    </div>
+                    <div class="playlist-count">
+                        <span id="playlist-count">${this.filteredPlaylists.length} playlists</span>
+                    </div>
+                </div>
+                
+                <div class="modal-3d-content">
+                    <div class="playlist-grid" id="playlist-grid">
+                        ${this.renderPlaylistGrid()}
+                    </div>
+                </div>
+                
+                <div class="floating-buttons">
+                    <button class="btn btn-secondary floating-btn" onclick="window.location.href='app.html'">
+                        Retour
+                    </button>
+                    <button id="shuffle-selected-btn" class="btn btn-primary floating-btn" onclick="playlistSelector.shuffleSelected()" disabled>
+                        Shuffle la playlist sélectionnée
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Nouvelle méthode pour initialiser les événements en mode page
+    initializePageEvents() {
+        // Ré-attacher les événements après injection du HTML
+        const sortDropdown = document.getElementById('sort-dropdown');
+        if (sortDropdown) {
+            sortDropdown.addEventListener('change', (e) => {
+                this.changeSorting(e.target.value);
+            });
         }
-        this.selectedPlaylist = null;
+        
+        // Attacher les événements de sélection de playlist
+        this.attachPlaylistEvents();
+    }
+    
+    // Méthode pour attacher les événements aux cartes de playlist
+    attachPlaylistEvents() {
+        const playlistCards = document.querySelectorAll('.playlist-card-3d');
+        playlistCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const playlistId = card.dataset.playlistId;
+                this.selectPlaylist(playlistId);
+            });
+        });
     }
 
 
@@ -357,5 +400,6 @@ const playlistSelector = new PlaylistSelector();
 
 // Fonction appelée par le bouton
 function openPlaylistSelector() {
-    playlistSelector.openSelector();
+    // Rediriger vers la page de sélection de playlist
+    window.location.href = 'playlist-selector.html';
 }
