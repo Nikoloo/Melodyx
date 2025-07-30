@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Player | Melodyx</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="spotify-player.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .page-container {
+            min-height: 100vh;
+            background: var(--background-dark);
+            padding: 2rem 0;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 0 2rem;
+        }
+        
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+        
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .back-button {
+            position: fixed;
+            top: 2rem;
+            left: 2rem;
+            background: var(--background-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 0.8rem 1.5rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 1000;
+        }
+        
+        .back-button:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .player-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .back-button {
+                position: static;
+                margin: 0 2rem 2rem 2rem;
+                width: fit-content;
+            }
+            
+            .page-header {
+                margin-bottom: 2rem;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .page-container {
+                padding: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <a href="app.html" class="back-button">
+            ← Retour à l'application
+        </a>
+        
+        <div class="page-header">
+            <h1 class="page-title">Spotify Player</h1>
+            <p class="page-subtitle">
+                Écoutez votre musique Spotify directement dans l'application avec des contrôles 
+                intégrés et une expérience d'écoute optimisée.
+            </p>
+        </div>
+        
+        <div class="player-content">
+            <!-- Status de connexion -->
+            <div id="connection-status" class="connection-status">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <h3>Initialisation du lecteur...</h3>
+                <p>Connexion au service Spotify</p>
+            </div>
+            
+            <!-- Interface principale du lecteur -->
+            <div id="player-interface" class="player-interface" style="display: none;">
+                <!-- Informations de la piste actuelle -->
+                <div class="track-info">
+                    <div class="track-artwork">
+                        <img id="track-image" src="" alt="Album artwork" />
+                        <div class="track-placeholder">🎵</div>
+                    </div>
+                    <div class="track-details">
+                        <h2 id="track-name">Aucune piste en lecture</h2>
+                        <p id="track-artist">Sélectionnez une piste pour commencer</p>
+                        <p id="track-album"></p>
+                    </div>
+                </div>
+                
+                <!-- Barre de progression -->
+                <div class="progress-section">
+                    <span id="current-time">0:00</span>
+                    <div class="progress-bar">
+                        <div class="progress-track">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                        <input type="range" id="progress-slider" min="0" max="100" value="0" class="progress-input">
+                    </div>
+                    <span id="total-time">0:00</span>
+                </div>
+                
+                <!-- Contrôles de lecture -->
+                <div class="playback-controls">
+                    <button id="prev-btn" class="control-btn" title="Précédent" disabled>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
+                        </svg>
+                        <div class="control-loading" style="display: none;"></div>
+                    </button>
+                    
+                    <button id="play-pause-btn" class="control-btn play-btn" title="Lecture" disabled>
+                        <svg id="play-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <svg id="pause-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
+                        <div class="control-loading" style="display: none;"></div>
+                    </button>
+                    
+                    <button id="next-btn" class="control-btn" title="Suivant" disabled>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                        </svg>
+                        <div class="control-loading" style="display: none;"></div>
+                    </button>
+                </div>
+                
+                <!-- Contrôle du volume -->
+                <div class="volume-section">
+                    <button id="volume-btn" class="volume-button" title="Volume">
+                        <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                    </button>
+                    <div class="volume-slider">
+                        <input type="range" id="volume-input" min="0" max="100" value="50">
+                    </div>
+                    <span id="volume-value" class="volume-value">50%</span>
+                </div>
+                
+                <!-- Informations sur l'appareil -->
+                <div class="device-info">
+                    <p>🔊 <span id="device-name">Melodyx Web Player</span> <span id="device-status" class="device-status-badge">Connecté</span></p>
+                    <p class="device-note">Contrôlez la lecture depuis n'importe quel appareil Spotify Connect</p>
+                    <div id="device-actions" class="device-actions" style="display: none;">
+                        <button id="transfer-here-btn" class="btn btn-sm btn-primary">🔄 Transférer ici</button>
+                        <button id="refresh-state-btn" class="btn btn-sm btn-secondary">🔄 Actualiser</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Message d'erreur -->
+            <div id="error-message" class="error-message" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h3>Erreur de connexion</h3>
+                <p id="error-text">Une erreur s'est produite lors de la connexion au service Spotify.</p>
+                <button id="retry-btn" class="btn btn-primary">Réessayer</button>
+            </div>
+            
+            <!-- Instructions Premium -->
+            <div id="premium-notice" class="premium-notice" style="display: none;">
+                <div class="premium-icon">⭐</div>
+                <h3>Spotify Premium requis</h3>
+                <p>Pour utiliser le lecteur intégré, vous devez avoir un abonnement Spotify Premium actif.</p>
+                <div class="premium-features">
+                    <span>✓ Lecture haute qualité</span>
+                    <span>✓ Contrôle total</span>
+                    <span>✓ Sans publicité</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="spotify-auth.js"></script>
+    <script src="spotify-web-api-service.js"></script>
+    <script src="spotify-player.js"></script>
+    <script>
+        // Vérifier l'authentification au chargement
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!SpotifyAuth.isLoggedIn()) {
+                // Rediriger vers la page d'accueil si pas connecté
+                window.location.href = '/Melodyx/';
+                return;
+            }
+
+            // Initialiser le lecteur Spotify
+            await initializeSpotifyPlayer();
+        });
+
+        // Fonction pour initialiser le lecteur
+        async function initializeSpotifyPlayer() {
+            try {
+                logger.info('HTML: Initialisation du lecteur Spotify');
+                
+                // Créer l'instance globale
+                window.spotifyPlayer = new SpotifyPlayer();
+                await window.spotifyPlayer.initialize();
+                
+                logger.info('HTML: Lecteur initialisé avec succès');
+            } catch (error) {
+                logger.error('HTML: Erreur lors de l\'initialisation', error);
+                showError(error.message || 'Impossible d\'initialiser le lecteur Spotify');
+            }
+        }
+
+        // Fonction pour afficher les erreurs
+        function showError(message) {
+            const statusDiv = document.getElementById('connection-status');
+            const errorDiv = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            
+            statusDiv.style.display = 'none';
+            errorText.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -6,9 +6,6 @@
     <title>Melodyx - Application</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="playlist-selector.css">
-    <link rel="stylesheet" href="music-visualizer.css">
-    <link rel="stylesheet" href="spotify-player.css">
-    <link rel="stylesheet" href="spotify-track-browser.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -50,56 +47,71 @@
             display: block;
         }
         
-        .features-grid-app {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 3rem;
+        .features-list {
+            max-width: 800px;
+            margin: 3rem auto 0;
         }
         
-        .feature-app {
-            background: var(--background-card);
-            padding: 2rem;
-            border-radius: var(--border-radius);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
-            transition: all 0.3s ease;
+        .feature-item {
+            padding: 2rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
         }
         
-        .feature-app:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow);
+        .feature-item:last-child {
+            border-bottom: none;
         }
         
-        .feature-app h3 {
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.01);
+        }
+        
+        .feature-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        
+        .feature-title {
             color: var(--text-primary);
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-        
-        .feature-app p {
-            color: var(--text-secondary);
-            margin-bottom: 1.5rem;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            font-size: 1.25rem;
             font-weight: 600;
+            margin: 0;
+        }
+        
+        .feature-description {
+            color: var(--text-secondary);
+            margin: 0 0 1rem 0;
+            line-height: 1.5;
+        }
+        
+        .feature-action {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .status-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
         }
         
         .status-coming-soon {
-            background: rgba(255, 107, 107, 0.2);
             color: var(--accent-color);
-            border: 1px solid rgba(255, 107, 107, 0.3);
         }
         
-        .status-beta {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
-            border: 1px solid rgba(255, 193, 7, 0.3);
+        .feature-highlight {
+            background: rgba(29, 185, 84, 0.05);
+            border-left: 3px solid var(--primary-color);
+            padding: 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+        
+        .feature-highlight .feature-title {
+            color: var(--primary-color);
         }
         
         .logout-btn {
@@ -197,63 +209,87 @@
                 </div>
             </div>
             
-            <div class="features-grid-app">
-                <div class="feature-app">
-                    <h3>🔀 Vrai mode aléatoire</h3>
-                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border: 1px solid rgba(29, 185, 84, 0.3);">
-                        <small style="color: var(--primary-color); font-weight: 600;">
-                            ✓ 100% aléatoire (pas de biais)<br>
-                            ✓ Utilise vos titres likés<br>
-                            ✓ Crée une playlist temporaire
-                        </small>
-                    </div>
-                    <button id="true-shuffle-btn" class="btn btn-primary" onclick="openPlaylistSelector()">
-                        True Shuffle
-                    </button>
-                </div>
-                
-                <div class="feature-app">
-                    <h3>🎵 Lecteur Spotify intégré</h3>
-                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border: 1px solid rgba(29, 185, 84, 0.3);">
-                        <small style="color: var(--primary-color); font-weight: 600;">
-                            ✓ Contrôles de lecture complets<br>
-                            ✓ Barre de progression interactive<br>
-                            ✓ Contrôle du volume
-                        </small>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button class="btn btn-secondary" onclick="spotifyTrackBrowser.showRecentTracks()">Récents</button>
-                        <button class="btn btn-secondary" onclick="spotifyTrackBrowser.showSavedTracks()">Favoris</button>
-                        <button class="btn btn-secondary" onclick="spotifyTrackBrowser.showTopTracks()">Top Titres</button>
+            <div class="features-list">
+                <div class="feature-item">
+                    <div class="feature-highlight">
+                        <div class="feature-header">
+                            <h3 class="feature-title">🔀 Vrai mode aléatoire</h3>
+                            <div class="feature-action">
+                                <button id="true-shuffle-btn" class="btn btn-primary" onclick="openPlaylistSelector()">
+                                    Commencer
+                                </button>
+                            </div>
+                        </div>
+                        <p class="feature-description">
+                            Contrairement au mode aléatoire de Spotify qui favorise certains titres, 
+                            cette fonction crée un mélange parfaitement équilibré de vos playlists.
+                        </p>
+                        <div style="display: flex; gap: 2rem; font-size: 0.85rem; color: var(--primary-color);">
+                            <span>✓ 100% aléatoire</span>
+                            <span>✓ Aucun biais</span>
+                            <span>✓ Vos playlists</span>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="feature-app">
-                    <h3>🎤 Lyrics animés</h3>
-                    <p>Paroles synchronisées avec des effets visuels immersifs</p>
-                    <div class="status-badge status-coming-soon">Bientôt disponible</div>
+                <div class="feature-item">
+                    <div class="feature-highlight">
+                        <div class="feature-header">
+                            <h3 class="feature-title">🎵 Spotify Player</h3>
+                            <div class="feature-action">
+                                <button class="btn btn-primary" onclick="window.location.href='spotify-player.html'">
+                                    Ouvrir le lecteur
+                                </button>
+                            </div>
+                        </div>
+                        <p class="feature-description">
+                            Écoutez votre musique Spotify directement dans l'application avec des contrôles 
+                            intégrés et une interface moderne.
+                        </p>
+                        <div style="display: flex; gap: 2rem; font-size: 0.85rem; color: var(--primary-color);">
+                            <span>✓ Lecture intégrée</span>
+                            <span>✓ Contrôles complets</span>
+                            <span>✓ Premium requis</span>
+                        </div>
+                    </div>
                 </div>
                 
-                <!-- Visualizer will be inserted here by visualizer-ui.js -->
+                <div class="feature-item">
+                    <div class="feature-header">
+                        <h3 class="feature-title">🎤 Lyrics animés</h3>
+                        <div class="status-text status-coming-soon">Bientôt disponible</div>
+                    </div>
+                    <p class="feature-description">
+                        Paroles synchronisées avec des effets visuels immersifs
+                    </p>
+                </div>
                 
-                <div class="feature-app">
-                    <h3>📊 Rewind mensuel</h3>
-                    <p>Statistiques détaillées de votre historique d'écoute</p>
-                    <button class="btn btn-primary" onclick="showStats()">Voir mes stats</button>
+                <div class="feature-item">
+                    <div class="feature-header">
+                        <h3 class="feature-title">🌈 Visualisations musicales</h3>
+                        <div class="status-text status-coming-soon">Bientôt disponible</div>
+                    </div>
+                    <p class="feature-description">
+                        Visualisations immersives synchronisées avec votre musique
+                    </p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-header">
+                        <h3 class="feature-title">📊 Rewind mensuel</h3>
+                        <div class="status-text status-coming-soon">Bientôt disponible</div>
+                    </div>
+                    <p class="feature-description">
+                        Statistiques détaillées de votre historique d'écoute mensuel
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="spotify-auth.js"></script>
-    <script src="spotify-player.js"></script>
-    <script src="spotify-player-ui.js"></script>
-    <script src="spotify-track-browser.js"></script>
     <script src="true-random.js"></script>
     <script src="playlist-selector.js"></script>
-    <script src="real-audio-analyzer.js"></script>
-    <script src="music-visualizer.js"></script>
-    <script src="visualizer-ui.js"></script>
     <script>
         // Vérifier l'authentification au chargement
         document.addEventListener('DOMContentLoaded', async () => {
@@ -265,14 +301,6 @@
 
             await loadUserProfile();
             await loadCurrentTrack();
-            
-            // Initialize Spotify Player
-            try {
-                await spotifyPlayerUI.initialize();
-                console.log('Spotify player initialized successfully');
-            } catch (error) {
-                console.error('Failed to initialize Spotify player:', error);
-            }
         });
 
         // Charger le profil utilisateur
@@ -337,10 +365,7 @@
             SpotifyAuth.logout();
         }
 
-        // Afficher les statistiques (placeholder)
-        function showStats() {
-            alert('Fonctionnalité en cours de développement ! 🚧\n\nBientôt disponible :\n• Top artistes du mois\n• Genres préférés\n• Temps d\'écoute\n• Découvertes musicales');
-        }
+        // Fonction supprimée - Rewind mensuel maintenant en "Bientôt disponible"
 
         // Fonction pour générer la playlist vraiment aléatoire
         async function generateTrueRandom() {

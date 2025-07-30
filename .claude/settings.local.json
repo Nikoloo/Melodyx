@@ -8,9 +8,12 @@
       "Bash(git push:*)",
       "WebFetch(domain:nikoloo.github.io)",
       "Bash(python:*)",
-      "Bash(node:*)",
+      "Bash(git config:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(mv:*)",
       "WebFetch(domain:github.com)",
-      "Bash(ls:*)"
+      "Bash(node:*)"
     ],
     "deny": []
   }
