@@ -95,31 +95,48 @@
                     </button>
                 </div>
                 
-                <!-- Contrôle du volume -->
-                <div class="volume-section">
-                    <button id="volume-btn" class="volume-button" title="Volume">
-                        <svg id="volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                        </svg>
-                    </button>
-                    <div class="volume-bar-container">
-                        <div class="volume-bar">
-                            <div class="volume-bar-bg"></div>
-                            <div class="volume-bar-fill" id="volume-fill">
-                                <div class="volume-liquid"></div>
+                <!-- Vertical Volume Control with Liquid Physics -->
+                <div class="vertical-volume-control">
+                    <div class="liquid-container">
+                        <div class="liquid-background">
+                            <div class="liquid-bubbles">
+                                <div class="bubble bubble-1"></div>
+                                <div class="bubble bubble-2"></div>
+                                <div class="bubble bubble-3"></div>
+                                <div class="bubble bubble-4"></div>
+                                <div class="bubble bubble-5"></div>
                             </div>
                         </div>
-                        <input type="range" id="volume-input" min="0" max="100" value="50" class="volume-input">
+                        <div class="liquid-fill" id="liquid-volume-fill">
+                            <div class="liquid-surface">
+                                <div class="wave wave-1"></div>
+                                <div class="wave wave-2"></div>
+                                <div class="wave wave-3"></div>
+                            </div>
+                            <div class="liquid-droplets">
+                                <div class="droplet droplet-1"></div>
+                                <div class="droplet droplet-2"></div>
+                                <div class="droplet droplet-3"></div>
+                            </div>
+                            <div class="liquid-physics">
+                                <div class="liquid-particle particle-1"></div>
+                                <div class="liquid-particle particle-2"></div>
+                                <div class="liquid-particle particle-3"></div>
+                                <div class="liquid-particle particle-4"></div>
+                            </div>
+                        </div>
+                        <input type="range" id="volume-input" min="0" max="100" value="50" class="vertical-volume-input" orient="vertical">
                     </div>
-                    <span id="volume-value" class="volume-value">50%</span>
+                    <div class="volume-level-indicator">
+                        <span id="volume-value" class="volume-percentage">50%</span>
+                    </div>
                 </div>
                 
-                <!-- Informations sur l'appareil -->
-                <div class="device-info">
-                    <p>🔊 <span id="device-status" class="device-status-badge">Connecté</span></p>
+                <!-- Device Actions (without status display) -->
+                <div class="device-actions-only">
                     <div id="device-actions" class="device-actions" style="display: none;">
-                        <button id="transfer-here-btn" class="btn btn-sm btn-primary">🔄 Transférer ici</button>
-                        <button id="refresh-state-btn" class="btn btn-sm btn-secondary">🔄 Actualiser</button>
+                        <button id="transfer-here-btn" class="btn btn-sm btn-primary">Transférer ici</button>
+                        <button id="refresh-state-btn" class="btn btn-sm btn-secondary">Actualiser</button>
                     </div>
                 </div>
             </div>
