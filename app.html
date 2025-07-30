@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="playlist-selector.css">
     <link rel="stylesheet" href="music-visualizer.css">
+    <link rel="stylesheet" href="spotify-player.css">
+    <link rel="stylesheet" href="spotify-track-browser.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -211,6 +213,22 @@
                 </div>
                 
                 <div class="feature-app">
+                    <h3>🎵 Lecteur Spotify intégré</h3>
+                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border: 1px solid rgba(29, 185, 84, 0.3);">
+                        <small style="color: var(--primary-color); font-weight: 600;">
+                            ✓ Contrôles de lecture complets<br>
+                            ✓ Barre de progression interactive<br>
+                            ✓ Contrôle du volume
+                        </small>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-secondary" onclick="spotifyTrackBrowser.showRecentTracks()">Récents</button>
+                        <button class="btn btn-secondary" onclick="spotifyTrackBrowser.showSavedTracks()">Favoris</button>
+                        <button class="btn btn-secondary" onclick="spotifyTrackBrowser.showTopTracks()">Top Titres</button>
+                    </div>
+                </div>
+                
+                <div class="feature-app">
                     <h3>🎤 Lyrics animés</h3>
                     <p>Paroles synchronisées avec des effets visuels immersifs</p>
                     <div class="status-badge status-coming-soon">Bientôt disponible</div>
@@ -228,6 +246,9 @@
     </div>
 
     <script src="spotify-auth.js"></script>
+    <script src="spotify-player.js"></script>
+    <script src="spotify-player-ui.js"></script>
+    <script src="spotify-track-browser.js"></script>
     <script src="true-random.js"></script>
     <script src="playlist-selector.js"></script>
     <script src="real-audio-analyzer.js"></script>
@@ -244,6 +265,14 @@
 
             await loadUserProfile();
             await loadCurrentTrack();
+            
+            // Initialize Spotify Player
+            try {
+                await spotifyPlayerUI.initialize();
+                console.log('Spotify player initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize Spotify player:', error);
+            }
         });
 
         // Charger le profil utilisateur
