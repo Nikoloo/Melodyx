@@ -1,12 +1,20 @@
 /* Spotify Player Styles - Melodyx */
 
+/* Page container - unified background */
+.page-container {
+    min-height: 100vh;
+    background: var(--background-dark);
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Status et connexion */
 .connection-status {
     text-align: center;
     padding: 3rem 2rem;
-    background: var(--background-card);
-    border-radius: var(--border-radius);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 2rem;
 }
 
@@ -38,30 +46,32 @@
 
 /* Interface principale du lecteur */
 .player-interface {
-    background: var(--background-card);
-    border-radius: var(--border-radius);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 2rem;
-    box-shadow: var(--shadow);
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
 }
 
 /* Informations de la piste */
 .track-info {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 2rem;
-    margin-bottom: 2rem;
+    text-align: center;
+    gap: 1.5rem;
+    margin-bottom: 3rem;
     padding-bottom: 2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .track-artwork {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 200px;
+    height: 200px;
     border-radius: var(--border-radius);
     overflow: hidden;
     background: var(--background-darker);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .track-artwork img {
@@ -86,6 +96,7 @@
 .track-details {
     flex: 1;
     min-width: 0;
+    max-width: 600px;
 }
 
 .track-details h2 {
@@ -243,9 +254,8 @@
     gap: 1rem;
     margin-bottom: 1.5rem;
     padding: 1rem;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: var(--border-radius);
     position: relative;
+    justify-content: center;
 }
 
 .volume-button {
@@ -263,37 +273,101 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
-.volume-slider {
-    flex: 1;
-    max-width: 120px;
+/* Volume bar container */
+.volume-bar-container {
+    position: relative;
+    width: 200px;
+    height: 40px;
+    display: flex;
+    align-items: center;
 }
 
-.volume-slider input {
+/* Volume bar background */
+.volume-bar {
+    position: relative;
     width: 100%;
-    height: 4px;
+    height: 12px;
     background: rgba(255, 255, 255, 0.1);
-    outline: none;
-    border-radius: 2px;
-    appearance: none;
-    cursor: pointer;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-.volume-slider input::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
+/* Volume bar fill with fluid animation */
+.volume-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
     background: var(--primary-color);
-    border-radius: 50%;
-    cursor: pointer;
+    border-radius: 6px;
+    width: 50%;
+    transition: width 0.2s ease;
+    overflow: hidden;
 }
 
-.volume-slider input::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    background: var(--primary-color);
-    border-radius: 50%;
+/* Liquid animation inside volume bar */
+.volume-liquid {
+    position: absolute;
+    top: -50%;
+    left: -20%;
+    width: 140%;
+    height: 200%;
+    background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.3) 25%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0.3) 75%,
+        rgba(255, 255, 255, 0.1) 100%);
+    animation: liquidFlow 3s linear infinite;
+}
+
+@keyframes liquidFlow {
+    0% {
+        transform: translateX(-100%) translateY(0) rotate(0deg);
+    }
+    50% {
+        transform: translateX(0%) translateY(-10%) rotate(180deg);
+    }
+    100% {
+        transform: translateX(100%) translateY(0) rotate(360deg);
+    }
+}
+
+/* Volume input (invisible overlay) */
+.volume-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
     cursor: pointer;
-    border: none;
+    z-index: 10;
+}
+
+/* Add ripple effect on volume change */
+.volume-bar-fill::after {
+    content: '';
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: ripple 1.5s ease-out infinite;
+}
+
+@keyframes ripple {
+    0% {
+        transform: translateY(-50%) scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-50%) scale(2);
+        opacity: 0;
+    }
 }
 
 /* Informations sur l'appareil */
@@ -306,7 +380,7 @@
 .device-info p {
     color: var(--text-secondary);
     font-size: 0.9rem;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
 }
 
 .device-info p:first-child {
@@ -314,16 +388,11 @@
     font-weight: 500;
 }
 
-.device-note {
-    font-size: 0.8rem !important;
-    opacity: 0.7;
-}
-
 /* Messages d'erreur */
 .error-message {
     text-align: center;
     padding: 3rem 2rem;
-    background: var(--background-card);
+    background: rgba(255, 255, 255, 0.05);
     border-radius: var(--border-radius);
     border: 1px solid rgba(255, 107, 107, 0.2);
     margin-bottom: 2rem;
@@ -350,7 +419,7 @@
 .premium-notice {
     text-align: center;
     padding: 3rem 2rem;
-    background: var(--background-card);
+    background: rgba(255, 255, 255, 0.05);
     border-radius: var(--border-radius);
     border: 1px solid rgba(29, 185, 84, 0.2);
     margin-bottom: 2rem;
@@ -490,21 +559,70 @@
     text-align: center;
 }
 
+/* Back button styling */
+.back-button {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.back-button:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(29, 185, 84, 0.3);
+}
+
+/* Player content */
+.player-content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    width: 100%;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
+    .page-container {
+        padding: 1rem 0;
+    }
+    
     .player-interface {
         padding: 1.5rem;
     }
     
-    .track-info {
-        flex-direction: column;
-        text-align: center;
-        gap: 1.5rem;
+    .track-artwork {
+        width: 180px;
+        height: 180px;
     }
     
-    .track-artwork {
-        width: 200px;
-        height: 200px;
+    .volume-bar-container {
+        width: 180px;
+    }
+    
+    .header-actions {
+        top: 1rem;
+        right: 1rem;
+    }
+    
+    .back-button {
+        top: 1rem;
+        left: 1rem;
+        width: 44px;
+        height: 44px;
     }
     
     .track-details h2 {
@@ -531,8 +649,8 @@
         min-width: 35px;
     }
     
-    .volume-section {
-        justify-content: center;
+    .volume-bar-container {
+        width: 150px;
     }
     
     .premium-features {
@@ -566,6 +684,10 @@
     .track-artwork {
         width: 150px;
         height: 150px;
+    }
+    
+    .volume-bar-container {
+        width: 120px;
     }
     
     .track-details h2 {
@@ -645,26 +767,20 @@
     color: var(--text-primary);
 }
 
-/* Header enhancements */
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2rem;
-}
-
-.header-text {
-    flex: 1;
-}
-
+/* Header actions */
 .header-actions {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
     display: flex;
     gap: 1rem;
     align-items: center;
+    z-index: 100;
 }
 
 .header-action-btn {
-    background: var(--background-card);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     width: 48px;
@@ -1068,16 +1184,6 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        gap: 1.5rem;
-        text-align: center;
-    }
-    
-    .header-actions {
-        justify-content: center;
-    }
-    
     .modal-overlay {
         padding: 0.5rem;
     }

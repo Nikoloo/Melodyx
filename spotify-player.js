@@ -183,6 +183,9 @@ class SpotifyPlayer {
             this.showPlayerInterface();
             document.getElementById('device-name').textContent = 'Melodyx Web Player';
             
+            // Initialize volume display with current volume 
+            this.initializeVolumeDisplay();
+            
             // Démarrer les health checks
             this.startHealthChecks();
         });
@@ -558,19 +561,99 @@ class SpotifyPlayer {
 
         // Slider de volume avec débounce
         let volumeTimeout = null;
-        document.getElementById('volume-input').addEventListener('input', (e) => {
-            const volume = e.target.value;
+        const volumeSlider = document.getElementById('volume-input');
+        
+        if (volumeSlider) {
+            // Handle input events for smooth visual feedback
+            volumeSlider.addEventListener('input', (e) => {
+                const volume = e.target.value;
+                
+                // Mettre à jour l'affichage immédiatement
+                this.updateVolumeIcon(volume);
+                this.updateVolumeDisplay(volume);
+                
+                // Débounce l'appel API
+                clearTimeout(volumeTimeout);
+                volumeTimeout = setTimeout(() => {
+                    this.setVolume(volume);
+                }, 200);
+            });
             
-            // Mettre à jour l'affichage immédiatement
-            this.updateVolumeIcon(volume);
-            this.updateVolumeDisplay(volume);
-            
-            // Débounce l'appel API
-            clearTimeout(volumeTimeout);
-            volumeTimeout = setTimeout(() => {
+            // Handle change events for final value
+            volumeSlider.addEventListener('change', (e) => {
+                const volume = e.target.value;
+                // Ensure final value is set immediately
+                clearTimeout(volumeTimeout);
                 this.setVolume(volume);
-            }, 200);
-        });
+            });
+            
+            // Handle clicks on the volume bar for direct volume setting
+            const volumeBar = document.querySelector('.volume-bar');
+            if (volumeBar) {
+                volumeBar.addEventListener('click', (e) => {
+                    // Prevent event if clicking on the knob or slider
+                    if (e.target.classList.contains('volume-knob') || e.target.id === 'volume-input') {
+                        return;
+                    }
+                    
+                    const rect = volumeBar.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const percentage = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+                    const volume = Math.round(percentage);
+                    
+                    // Update volume immediately
+                    this.updateVolumeIcon(volume);
+                    this.updateVolumeDisplay(volume);
+                    this.setVolume(volume);
+                });
+            }
+            
+            // Add drag functionality for volume knob
+            const volumeKnob = document.getElementById('volume-knob');
+            if (volumeKnob) {
+                let isDragging = false;
+                let dragTimeout = null;
+                
+                volumeKnob.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    e.preventDefault();
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const volumeBar = document.querySelector('.volume-bar');
+                    if (!volumeBar) return;
+                    
+                    const rect = volumeBar.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                    const volume = Math.round(percentage);
+                    
+                    // Update display immediately for smooth feedback
+                    this.updateVolumeIcon(volume);
+                    this.updateVolumeDisplay(volume);
+                    
+                    // Debounce the API call
+                    clearTimeout(dragTimeout);
+                    dragTimeout = setTimeout(() => {
+                        this.setVolume(volume);
+                    }, 100);
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        // Ensure final volume is set
+                        clearTimeout(dragTimeout);
+                        const volumeSlider = document.getElementById('volume-input');
+                        if (volumeSlider) {
+                            this.setVolume(volumeSlider.value);
+                        }
+                    }
+                });
+            }
+        }
 
         // Slider de progression avec débounce
         let seekTimeout = null;
@@ -609,25 +692,34 @@ class SpotifyPlayer {
         });
 
         // Bouton volume (muet/son)
-        document.getElementById('volume-btn').addEventListener('click', () => {
-            const volumeSlider = document.getElementById('volume-input');
-            const currentVolume = parseInt(volumeSlider.value);
-            
-            if (currentVolume > 0) {
-                // Sauvegarder le volume actuel
-                this.previousVolume = currentVolume;
-                volumeSlider.value = 0;
-                this.setVolume(0);
-            } else {
-                // Restaurer le volume précédent ou défaut
-                const restoreVolume = this.previousVolume || 50;
-                volumeSlider.value = restoreVolume;
-                this.setVolume(restoreVolume);
-            }
-            
-            this.updateVolumeIcon(volumeSlider.value);
-            this.updateVolumeDisplay(volumeSlider.value);
-        });
+        const volumeBtn = document.getElementById('volume-btn');
+        if (volumeBtn) {
+            volumeBtn.addEventListener('click', () => {
+                const volumeSlider = document.getElementById('volume-input');
+                if (!volumeSlider) return;
+                
+                const currentVolume = parseInt(volumeSlider.value);
+                
+                if (currentVolume > 0) {
+                    // Sauvegarder le volume actuel et couper le son
+                    this.previousVolume = currentVolume;
+                    const newVolume = 0;
+                    
+                    // Update all volume displays immediately
+                    this.updateVolumeIcon(newVolume);
+                    this.updateVolumeDisplay(newVolume);
+                    this.setVolume(newVolume);
+                } else {
+                    // Restaurer le volume précédent ou défaut
+                    const restoreVolume = this.previousVolume || 50;
+                    
+                    // Update all volume displays immediately
+                    this.updateVolumeIcon(restoreVolume);
+                    this.updateVolumeDisplay(restoreVolume);
+                    this.setVolume(restoreVolume);
+                }
+            });
+        }
         
         // Actualisation manuelle de l'état
         const refreshBtn = document.getElementById('refresh-state-btn');
@@ -989,11 +1081,34 @@ class SpotifyPlayer {
         }
     }
     
+    // Initialize volume display on player ready
+    initializeVolumeDisplay() {
+        const initialVolume = this.volume * 100; // Convert from 0-1 to 0-100
+        this.updateVolumeDisplay(initialVolume);
+        this.updateVolumeIcon(initialVolume);
+        
+        logger.debug('SpotifyPlayer: Volume display initialized', { volume: initialVolume });
+    }
+    
     // Mettre à jour l'affichage du volume
     updateVolumeDisplay(volume) {
-        const volumeValue = document.getElementById('volume-value');
-        if (volumeValue) {
-            volumeValue.textContent = `${volume}%`;
+        const volumeFill = document.getElementById('volume-fill');
+        const volumeKnob = document.getElementById('volume-knob');
+        const volumeSlider = document.getElementById('volume-input');
+        
+        // Update the volume slider value
+        if (volumeSlider) {
+            volumeSlider.value = volume;
+        }
+        
+        // Update the visual fill bar for horizontal layout
+        if (volumeFill) {
+            volumeFill.style.width = `${volume}%`;
+        }
+        
+        // Update the knob position for horizontal layout
+        if (volumeKnob) {
+            volumeKnob.style.left = `${volume}%`;
         }
     }
     
