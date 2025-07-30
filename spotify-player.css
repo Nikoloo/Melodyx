@@ -195,10 +195,13 @@
     cursor: pointer;
     padding: 0.8rem;
     border-radius: 50%;
-    transition: all 0.2s ease;
+    transition: all 0.12s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: scale(1);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .control-btn:hover {
@@ -208,7 +211,9 @@
 }
 
 .control-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.15);
+    transition: transform 0.05s ease;
 }
 
 .play-btn {
@@ -217,15 +222,18 @@
     padding: 1rem;
     width: 64px;
     height: 64px;
+    box-shadow: 0 2px 8px rgba(29, 185, 84, 0.3);
 }
 
 .play-btn:hover {
     background: var(--primary-dark);
-    transform: scale(1.1);
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.4);
 }
 
 .play-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.94);
+    box-shadow: 0 1px 4px rgba(29, 185, 84, 0.2);
 }
 
 /* Contrôle du volume */
@@ -379,11 +387,28 @@
     opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;
+    transform: scale(1) !important;
 }
 
 .control-btn.loading {
     position: relative;
-    opacity: 0.7;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.control-btn.loading:after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: button-spin 0.6s linear infinite;
+}
+
+@keyframes button-spin {
+    to { transform: rotate(360deg); }
 }
 
 .control-loading {

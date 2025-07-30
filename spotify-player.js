@@ -71,6 +71,11 @@ class SpotifyPlayer {
         this.searchResults = {};
         this.userPlaylists = [];
         
+        // Control buttons state management
+        this.controlsLocked = false;
+        this.pendingActions = new Set();
+        this.actionTimeouts = new Map();
+        
         logger.info('SpotifyPlayer: Instance créée');
     }
 
@@ -402,44 +407,77 @@ class SpotifyPlayer {
 
     // Contrôles de lecture (Web API primary, SDK fallback)
     async togglePlayback() {
+        // Empêcher les clics multiples
+        if (this.isActionPending('togglePlayback')) {
+            logger.debug('SpotifyPlayer: Toggle playback déjà en cours');
+            return;
+        }
+        
         logger.info('SpotifyPlayer: Toggle playback');
         
+        this.setActionPending('togglePlayback', true);
         this.showControlLoading('play-pause-btn');
         
+        // Mise à jour optimiste de l'UI
+        const previousState = this.isPlaying;
+        this.isPlaying = !this.isPlaying;
+        this.updatePlayButton(this.isPlaying);
+        
         try {
-            if (this.isPlaying) {
+            if (previousState) {
                 await this.webApiService.pausePlayback();
             } else {
                 await this.webApiService.resumePlayback(this.deviceId);
             }
             
-            // Force state update after a short delay
-            setTimeout(() => this.refreshState(), 500);
+            // Attendre moins longtemps pour la mise à jour
+            setTimeout(() => this.refreshState(), 200);
             
         } catch (error) {
             logger.error('SpotifyPlayer: Erreur toggle via Web API', error);
+            
+            // Restaurer l'état en cas d'erreur
+            this.isPlaying = previousState;
+            this.updatePlayButton(this.isPlaying);
             
             // Fallback to SDK if available
             if (this.player) {
                 try {
                     await this.player.togglePlay();
+                    this.isPlaying = !previousState;
+                    this.updatePlayButton(this.isPlaying);
                 } catch (sdkError) {
                     logger.error('SpotifyPlayer: Erreur toggle SDK', sdkError);
                 }
             }
         } finally {
             this.hideControlLoading('play-pause-btn');
+            setTimeout(() => {
+                this.setActionPending('togglePlayback', false);
+            }, 300); // Délai minimum entre les actions
         }
     }
 
     async nextTrack() {
+        // Empêcher les clics multiples
+        if (this.isActionPending('nextTrack')) {
+            logger.debug('SpotifyPlayer: Next track déjà en cours');
+            return;
+        }
+        
         logger.info('SpotifyPlayer: Next track');
         
+        this.setActionPending('nextTrack', true);
         this.showControlLoading('next-btn');
         
         try {
             await this.webApiService.nextTrack();
-            setTimeout(() => this.refreshState(), 500);
+            
+            // Réinitialiser la position pour un feedback immédiat
+            this.currentPosition = 0;
+            this.updateProgress();
+            
+            setTimeout(() => this.refreshState(), 200);
             
         } catch (error) {
             logger.error('SpotifyPlayer: Erreur next via Web API', error);
@@ -454,17 +492,32 @@ class SpotifyPlayer {
             }
         } finally {
             this.hideControlLoading('next-btn');
+            setTimeout(() => {
+                this.setActionPending('nextTrack', false);
+            }, 300);
         }
     }
 
     async previousTrack() {
+        // Empêcher les clics multiples
+        if (this.isActionPending('previousTrack')) {
+            logger.debug('SpotifyPlayer: Previous track déjà en cours');
+            return;
+        }
+        
         logger.info('SpotifyPlayer: Previous track');
         
+        this.setActionPending('previousTrack', true);
         this.showControlLoading('prev-btn');
         
         try {
             await this.webApiService.previousTrack();
-            setTimeout(() => this.refreshState(), 500);
+            
+            // Réinitialiser la position pour un feedback immédiat
+            this.currentPosition = 0;
+            this.updateProgress();
+            
+            setTimeout(() => this.refreshState(), 200);
             
         } catch (error) {
             logger.error('SpotifyPlayer: Erreur previous via Web API', error);
@@ -479,6 +532,9 @@ class SpotifyPlayer {
             }
         } finally {
             this.hideControlLoading('prev-btn');
+            setTimeout(() => {
+                this.setActionPending('previousTrack', false);
+            }, 300);
         }
     }
 
@@ -963,13 +1019,17 @@ class SpotifyPlayer {
     startStatePolling() {
         logger.info('SpotifyPlayer: Démarrage state polling');
         
+        // Polling plus fréquent pour une meilleure réactivité
         this.statePollingInterval = setInterval(async () => {
             try {
-                await this.refreshState();
+                // Ne pas faire de polling si une action est en cours
+                if (this.pendingActions.size === 0) {
+                    await this.refreshState();
+                }
             } catch (error) {
                 logger.debug('SpotifyPlayer: Erreur state polling', error);
             }
-        }, 3000); // Toutes les 3 secondes
+        }, 1500); // Toutes les 1.5 secondes pour plus de réactivité
     }
     
     // Rafraîchir l'état depuis l'API Web
@@ -1727,6 +1787,19 @@ class SpotifyPlayer {
                 }
             }, 300);
         }, 3000);
+    }
+    
+    // Gestion des actions en attente
+    isActionPending(actionName) {
+        return this.pendingActions.has(actionName);
+    }
+    
+    setActionPending(actionName, isPending) {
+        if (isPending) {
+            this.pendingActions.add(actionName);
+        } else {
+            this.pendingActions.delete(actionName);
+        }
     }
 }
 
