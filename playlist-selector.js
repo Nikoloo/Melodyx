@@ -312,9 +312,8 @@ class PlaylistSelector {
         }
 
         try {
-            // Sauvegarder la playlist sélectionnée avant de fermer le modal
+            // Sauvegarder la playlist sélectionnée
             const playlistToShuffle = this.selectedPlaylist;
-            this.closeSelector();
             
             if (playlistToShuffle.id === 'liked-tracks') {
                 // Utiliser la méthode existante pour les titres likés
@@ -323,6 +322,9 @@ class PlaylistSelector {
                 // Nouvelle méthode pour les playlists spécifiques
                 await trueRandomMode.shuffleSpecificPlaylist(playlistToShuffle);
             }
+            
+            // Rediriger vers app.html seulement après le shuffle réussi
+            this.closeSelector();
             
         } catch (error) {
             console.error('Erreur lors du shuffle:', error);
