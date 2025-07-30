@@ -466,6 +466,39 @@
     animation: fadeIn 0.5s ease-out;
 }
 
+/* Boutons d'action dans l'état d'accueil */
+.track-details .btn {
+    font-size: 0.9rem;
+    padding: 0.6rem 1.2rem;
+    margin: 0.25rem;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s ease;
+}
+
+.track-details .btn-primary {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.track-details .btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.track-details .btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.track-details .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
 /* Focus states pour l'accessibilité */
 .control-btn:focus,
 .volume-button:focus {

@@ -227,11 +227,16 @@
         // Fonction pour initialiser le lecteur
         async function initializeSpotifyPlayer() {
             try {
-                const player = new SpotifyPlayer();
-                await player.initialize();
+                logger.info('HTML: Initialisation du lecteur Spotify');
+                
+                // Créer l'instance globale
+                window.spotifyPlayer = new SpotifyPlayer();
+                await window.spotifyPlayer.initialize();
+                
+                logger.info('HTML: Lecteur initialisé avec succès');
             } catch (error) {
-                console.error('Erreur lors de l\'initialisation du lecteur:', error);
-                showError('Impossible d\'initialiser le lecteur Spotify');
+                logger.error('HTML: Erreur lors de l\'initialisation', error);
+                showError(error.message || 'Impossible d\'initialiser le lecteur Spotify');
             }
         }
 

@@ -203,6 +203,71 @@ const SpotifyAuth = {
         return null;
     },
 
+    // Rafraîchir le token d'accès
+    async refreshAccessToken() {
+        const refreshToken = localStorage.getItem('spotify_refresh_token');
+        if (!refreshToken) {
+            throw new Error('Aucun refresh token disponible');
+        }
+
+        try {
+            const response = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                    client_id: this.config.clientId
+                })
+            });
+
+            if (response.ok) {
+                const tokenData = await response.json();
+                
+                // Stocker le nouveau token
+                const expirationTime = Date.now() + (tokenData.expires_in * 1000);
+                localStorage.setItem('spotify_access_token', tokenData.access_token);
+                localStorage.setItem('spotify_token_expiration', expirationTime.toString());
+                
+                // Mettre à jour le refresh token si fourni
+                if (tokenData.refresh_token) {
+                    localStorage.setItem('spotify_refresh_token', tokenData.refresh_token);
+                }
+
+                console.log('Token rafraîchi avec succès');
+                return tokenData.access_token;
+            } else {
+                throw new Error(`Erreur lors du rafraîchissement: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Erreur lors du rafraîchissement du token:', error);
+            // En cas d'erreur, déconnecter l'utilisateur
+            this.logout();
+            throw error;
+        }
+    },
+
+    // Obtenir un token valide (avec rafraîchissement automatique)
+    async getValidAccessToken() {
+        // Vérifier si le token expire dans moins de 5 minutes
+        const expirationTime = parseInt(localStorage.getItem('spotify_token_expiration')) || 0;
+        const fiveMinutesFromNow = Date.now() + (5 * 60 * 1000);
+        
+        if (expirationTime < fiveMinutesFromNow) {
+            console.log('Token expire bientôt, rafraîchissement automatique...');
+            try {
+                return await this.refreshAccessToken();
+            } catch (error) {
+                console.error('Impossible de rafraîchir le token:', error);
+                return null;
+            }
+        }
+        
+        return this.getAccessToken();
+    },
+
     // Déconnexion
     logout() {
         localStorage.removeItem('spotify_access_token');
