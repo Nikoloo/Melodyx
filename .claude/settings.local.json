@@ -12,8 +12,12 @@
       "Bash(git pull:*)",
       "Bash(git checkout:*)",
       "Bash(mv:*)",
+<<<<<<< HEAD
       "WebFetch(domain:github.com)",
       "Bash(node:*)"
+=======
+      "WebFetch(domain:github.com)"
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
     ],
     "deny": []
   }

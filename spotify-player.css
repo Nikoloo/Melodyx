@@ -374,146 +374,6 @@
     color: var(--primary-color);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .player-interface {
-        padding: 1.5rem;
-    }
-    
-    .track-info {
-        flex-direction: column;
-        text-align: center;
-        gap: 1.5rem;
-    }
-    
-    .track-artwork {
-        width: 200px;
-        height: 200px;
-    }
-    
-    .track-details h2 {
-        font-size: 1.5rem;
-        white-space: normal;
-        text-align: center;
-    }
-    
-    .track-details p {
-        white-space: normal;
-        text-align: center;
-    }
-    
-    .playback-controls {
-        gap: 1rem;
-    }
-    
-    .progress-section {
-        gap: 0.5rem;
-    }
-    
-    .progress-section span {
-        font-size: 0.8rem;
-        min-width: 35px;
-    }
-    
-    .volume-section {
-        justify-content: center;
-    }
-    
-    .premium-features {
-        gap: 1rem;
-        flex-direction: column;
-        align-items: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .track-artwork {
-        width: 150px;
-        height: 150px;
-    }
-    
-    .track-details h2 {
-        font-size: 1.3rem;
-    }
-    
-    .control-btn {
-        padding: 0.6rem;
-    }
-    
-    .play-btn {
-        width: 56px;
-        height: 56px;
-        padding: 0.8rem;
-    }
-    
-    .player-interface {
-        padding: 1rem;
-    }
-}
-
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.player-interface {
-    animation: fadeIn 0.5s ease-out;
-}
-
-/* Boutons d'action dans l'état d'accueil */
-.track-details .btn {
-    font-size: 0.9rem;
-    padding: 0.6rem 1.2rem;
-    margin: 0.25rem;
-    border-radius: 6px;
-    text-decoration: none;
-    display: inline-block;
-    transition: all 0.2s ease;
-}
-
-.track-details .btn-primary {
-    background: var(--primary-color);
-    color: white;
-    border: none;
-}
-
-.track-details .btn-primary:hover {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-}
-
-.track-details .btn-secondary {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.track-details .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
-}
-
-/* Focus states pour l'accessibilité */
-.control-btn:focus,
-.volume-button:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-.progress-input:focus,
-.volume-slider input:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
 /* États des contrôles */
 .control-btn:disabled {
     opacity: 0.4;
@@ -605,8 +465,58 @@
     text-align: center;
 }
 
-/* Améliorations responsive pour les nouveaux éléments */
+/* Responsive Design */
 @media (max-width: 768px) {
+    .player-interface {
+        padding: 1.5rem;
+    }
+    
+    .track-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+    }
+    
+    .track-artwork {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .track-details h2 {
+        font-size: 1.5rem;
+        white-space: normal;
+        text-align: center;
+    }
+    
+    .track-details p {
+        white-space: normal;
+        text-align: center;
+    }
+    
+    .playback-controls {
+        gap: 1rem;
+    }
+    
+    .progress-section {
+        gap: 0.5rem;
+    }
+    
+    .progress-section span {
+        font-size: 0.8rem;
+        min-width: 35px;
+    }
+    
+    .volume-section {
+        justify-content: center;
+    }
+    
+    .premium-features {
+        gap: 1rem;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    /* Améliorations responsive pour les nouveaux éléments */
     .device-actions {
         margin-top: 1rem;
     }
@@ -628,6 +538,29 @@
 }
 
 @media (max-width: 480px) {
+    .track-artwork {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .track-details h2 {
+        font-size: 1.3rem;
+    }
+    
+    .control-btn {
+        padding: 0.6rem;
+    }
+    
+    .play-btn {
+        width: 56px;
+        height: 56px;
+        padding: 0.8rem;
+    }
+    
+    .player-interface {
+        padding: 1rem;
+    }
+    
     .device-actions {
         flex-direction: column;
         align-items: center;
@@ -636,4 +569,67 @@
     .btn-sm {
         min-width: 120px;
     }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.player-interface {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Boutons d'action dans l'état d'accueil */
+.track-details .btn {
+    font-size: 0.9rem;
+    padding: 0.6rem 1.2rem;
+    margin: 0.25rem;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s ease;
+}
+
+.track-details .btn-primary {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.track-details .btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.track-details .btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.track-details .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+/* Focus states pour l'accessibilité */
+.control-btn:focus,
+.volume-button:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.progress-input:focus,
+.volume-slider input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 4px;
 }

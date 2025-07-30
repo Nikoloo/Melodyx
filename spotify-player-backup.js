@@ -53,6 +53,7 @@ class SpotifyPlayer {
         this.currentPosition = 0;
         this.duration = 0;
         this.volume = 0.5;
+<<<<<<< HEAD
         this.previousVolume = 50;
         this.progressInterval = null;
         this.healthCheckInterval = null;
@@ -64,6 +65,13 @@ class SpotifyPlayer {
         
         // Web API service instance
         this.webApiService = new SpotifyWebAPIService();
+=======
+        this.progressInterval = null;
+        this.healthCheckInterval = null;
+        this.lastHealthCheck = null;
+        this.connectionRetries = 0;
+        this.maxRetries = 3;
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         
         logger.info('SpotifyPlayer: Instance créée');
     }
@@ -166,9 +174,12 @@ class SpotifyPlayer {
             this.isInitialized = true;
             this.connectionRetries = 0;
             
+<<<<<<< HEAD
             // Enregistrer l'appareil et transférer la lecture si nécessaire
             await this.handleDeviceReady(device_id);
             
+=======
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
             // Vérifier l'état initial
             await this.checkInitialState();
             
@@ -227,7 +238,7 @@ class SpotifyPlayer {
 
         // Changements d'état du lecteur (AMÉLIORÉ)
         this.player.addListener('player_state_changed', (state) => {
-            logger.debug('SpotifyPlayer: Changement d\'état', { hasState: !!state });
+            logger.debug('SpotifyPlayer: Changement d\'\u00e9tat', { hasState: !!state });
             
             if (!state) {
                 logger.warn('SpotifyPlayer: État null reçu, tentative de récupération via API');
@@ -243,7 +254,7 @@ class SpotifyPlayer {
 
     // Vérifier l'état initial après connexion
     async checkInitialState() {
-        logger.info('SpotifyPlayer: Vérification de l\'état initial');
+        logger.info('SpotifyPlayer: Vérification de l\'\u00e9tat initial');
         
         try {
             // Attendre un peu pour que le device soit actif
@@ -394,11 +405,10 @@ class SpotifyPlayer {
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
+<<<<<<< HEAD
     // Contrôles de lecture (Web API primary, SDK fallback)
     async togglePlayback() {
         logger.info('SpotifyPlayer: Toggle playback');
-        
-        this.showControlLoading('play-pause-btn');
         
         try {
             if (this.isPlaying) {
@@ -421,15 +431,22 @@ class SpotifyPlayer {
                     logger.error('SpotifyPlayer: Erreur toggle SDK', sdkError);
                 }
             }
-        } finally {
-            this.hideControlLoading('play-pause-btn');
+=======
+    // Contrôles de lecture
+    async togglePlayback() {
+        if (!this.player) return;
+        
+        try {
+            await this.player.togglePlay();
+        } catch (error) {
+            console.error('Erreur lors du toggle play/pause:', error);
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         }
     }
 
     async nextTrack() {
+<<<<<<< HEAD
         logger.info('SpotifyPlayer: Next track');
-        
-        this.showControlLoading('next-btn');
         
         try {
             await this.webApiService.nextTrack();
@@ -446,15 +463,20 @@ class SpotifyPlayer {
                     logger.error('SpotifyPlayer: Erreur next SDK', sdkError);
                 }
             }
-        } finally {
-            this.hideControlLoading('next-btn');
+=======
+        if (!this.player) return;
+        
+        try {
+            await this.player.nextTrack();
+        } catch (error) {
+            console.error('Erreur lors du passage à la piste suivante:', error);
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         }
     }
 
     async previousTrack() {
+<<<<<<< HEAD
         logger.info('SpotifyPlayer: Previous track');
-        
-        this.showControlLoading('prev-btn');
         
         try {
             await this.webApiService.previousTrack();
@@ -471,12 +493,19 @@ class SpotifyPlayer {
                     logger.error('SpotifyPlayer: Erreur previous SDK', sdkError);
                 }
             }
-        } finally {
-            this.hideControlLoading('prev-btn');
+=======
+        if (!this.player) return;
+        
+        try {
+            await this.player.previousTrack();
+        } catch (error) {
+            console.error('Erreur lors du retour à la piste précédente:', error);
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         }
     }
 
     async setVolume(volume) {
+<<<<<<< HEAD
         logger.debug('SpotifyPlayer: Set volume', { volume });
         
         try {
@@ -494,10 +523,20 @@ class SpotifyPlayer {
                     logger.error('SpotifyPlayer: Erreur volume SDK', sdkError);
                 }
             }
+=======
+        if (!this.player) return;
+        
+        try {
+            this.volume = volume / 100;
+            await this.player.setVolume(this.volume);
+        } catch (error) {
+            console.error('Erreur lors du réglage du volume:', error);
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         }
     }
 
     async seek(position) {
+<<<<<<< HEAD
         logger.debug('SpotifyPlayer: Seek to position', { position });
         
         try {
@@ -523,6 +562,16 @@ class SpotifyPlayer {
                     logger.error('SpotifyPlayer: Erreur seek SDK', sdkError);
                 }
             }
+=======
+        if (!this.player) return;
+        
+        try {
+            const seekPosition = (position / 100) * this.duration;
+            await this.player.seek(seekPosition);
+            this.currentPosition = seekPosition;
+        } catch (error) {
+            console.error('Erreur lors de la recherche:', error);
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         }
     }
 
@@ -546,6 +595,7 @@ class SpotifyPlayer {
         document.getElementById('premium-notice').style.display = 'block';
     }
 
+<<<<<<< HEAD
     // Attacher les événements de l'interface  
     attachUIEvents() {
         // Prévenir les événements multiples
@@ -554,22 +604,30 @@ class SpotifyPlayer {
         }
         this.uiEventsAttached = true;
         
-        // Activer les contrôles
-        this.enableControls();
-        
         // Bouton play/pause
         document.getElementById('play-pause-btn').addEventListener('click', (e) => {
             e.preventDefault();
+=======
+    // Attacher les événements de l'interface
+    attachUIEvents() {
+        // Bouton play/pause
+        document.getElementById('play-pause-btn').addEventListener('click', () => {
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
             this.togglePlayback();
         });
 
         // Bouton précédent
+<<<<<<< HEAD
         document.getElementById('prev-btn').addEventListener('click', (e) => {
             e.preventDefault();
+=======
+        document.getElementById('prev-btn').addEventListener('click', () => {
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
             this.previousTrack();
         });
 
         // Bouton suivant
+<<<<<<< HEAD
         document.getElementById('next-btn').addEventListener('click', (e) => {
             e.preventDefault();
             this.nextTrack();
@@ -620,6 +678,20 @@ class SpotifyPlayer {
             seekTimeout = setTimeout(() => {
                 this.seek(position);
             }, 100);
+=======
+        document.getElementById('next-btn').addEventListener('click', () => {
+            this.nextTrack();
+        });
+
+        // Slider de volume
+        document.getElementById('volume-input').addEventListener('input', (e) => {
+            this.setVolume(e.target.value);
+        });
+
+        // Slider de progression
+        document.getElementById('progress-slider').addEventListener('input', (e) => {
+            this.seek(e.target.value);
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         });
 
         // Bouton de réessai
@@ -630,6 +702,7 @@ class SpotifyPlayer {
         // Bouton volume (muet/son)
         document.getElementById('volume-btn').addEventListener('click', () => {
             const volumeSlider = document.getElementById('volume-input');
+<<<<<<< HEAD
             const currentVolume = parseInt(volumeSlider.value);
             
             if (currentVolume > 0) {
@@ -686,6 +759,16 @@ class SpotifyPlayer {
                 <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
             `;
         }
+=======
+            if (volumeSlider.value > 0) {
+                volumeSlider.value = 0;
+                this.setVolume(0);
+            } else {
+                volumeSlider.value = 50;
+                this.setVolume(50);
+            }
+        });
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
     }
 
     // Obtenir l'état actuel du lecteur
@@ -785,6 +868,7 @@ class SpotifyPlayer {
         if (this.isPlaying && !this.progressInterval) {
             this.startProgressTracking();
         }
+<<<<<<< HEAD
         
         // Mettre à jour le statut de l'appareil
         if (data.device && data.device.id === this.deviceId) {
@@ -850,6 +934,8 @@ class SpotifyPlayer {
         } catch (error) {
             logger.error('SpotifyPlayer: Erreur transfert vers appareil', error);
         }
+=======
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
     }
 
     // Afficher l'état d'accueil
@@ -864,17 +950,23 @@ class SpotifyPlayer {
         trackName.textContent = 'Aucune piste en lecture';
         trackArtist.innerHTML = `
             <div style="margin-top: 1rem;">
+<<<<<<< HEAD
                 <button onclick="window.spotifyPlayer.transferToThisDevice()" class="btn btn-primary" style="margin-right: 1rem;">
                     🎵 Transférer ici
                 </button>
                 <button onclick="window.open('https://open.spotify.com', '_blank')" class="btn btn-secondary" style="margin-right: 1rem;">
                     🔗 Ouvrir Spotify
+=======
+                <button onclick="window.open('https://open.spotify.com', '_blank')" class="btn btn-primary" style="margin-right: 1rem;">
+                    🎵 Ouvrir Spotify
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
                 </button>
                 <button onclick="window.location.href='playlist-selector.html'" class="btn btn-secondary">
                     📝 Mes Playlists
                 </button>
             </div>
         `;
+<<<<<<< HEAD
         trackAlbum.textContent = 'Démarrez la lecture sur Spotify, puis cliquez sur "Transférer ici" pour contrôler depuis Melodyx';
         
         // Afficher les actions de l'appareil
@@ -885,6 +977,9 @@ class SpotifyPlayer {
         
         // Mettre à jour le statut de l'appareil
         this.updateDeviceStatus('inactive');
+=======
+        trackAlbum.textContent = 'Démarrez la lecture sur n\'importe quel appareil Spotify pour contrôler ici';
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
     }
 
     // Reconnexion automatique
@@ -906,11 +1001,18 @@ class SpotifyPlayer {
         }
     }
 
+<<<<<<< HEAD
     // Démarrer les health checks et state polling
     startHealthChecks() {
         logger.info('SpotifyPlayer: Démarrage health checks et state polling');
         
         // Health checks pour la connexion
+=======
+    // Démarrer les health checks
+    startHealthChecks() {
+        logger.info('SpotifyPlayer: Démarrage health checks');
+        
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
         this.healthCheckInterval = setInterval(async () => {
             try {
                 const now = Date.now();
@@ -932,6 +1034,7 @@ class SpotifyPlayer {
                 logger.error('SpotifyPlayer: Erreur health check', error);
             }
         }, 15000); // Toutes les 15 secondes
+<<<<<<< HEAD
         
         // State polling pour synchroniser l'état
         this.startStatePolling();
@@ -964,18 +1067,26 @@ class SpotifyPlayer {
     }
 
     // Arrêter les health checks et state polling
+=======
+    }
+
+    // Arrêter les health checks
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
     stopHealthChecks() {
         if (this.healthCheckInterval) {
             clearInterval(this.healthCheckInterval);
             this.healthCheckInterval = null;
             logger.debug('SpotifyPlayer: Health checks arrêtés');
         }
+<<<<<<< HEAD
         
         if (this.statePollingInterval) {
             clearInterval(this.statePollingInterval);
             this.statePollingInterval = null;
             logger.debug('SpotifyPlayer: State polling arrêté');
         }
+=======
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
     }
 
     // Déconnecter le lecteur
@@ -989,6 +1100,7 @@ class SpotifyPlayer {
             this.player.disconnect();
         }
     }
+<<<<<<< HEAD
     
     // Mettre à jour l'affichage du volume
     updateVolumeDisplay(volume) {
@@ -1067,6 +1179,8 @@ class SpotifyPlayer {
             }
         }
     }
+=======
+>>>>>>> ae185100380d24165836bb7f1b858252aa9346df
 }
 
 // Fonction globale appelée quand le SDK est prêt
