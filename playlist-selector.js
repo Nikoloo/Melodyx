@@ -6,7 +6,7 @@ class PlaylistSelector {
         this.isLoading = false;
         this.selectedPlaylist = null;
         this.currentSort = 'alphabetical'; // alphabetical, count
-        this.currentView = 'grid'; // grid, list, dense
+        this.currentView = 'dense'; // list, dense
     }
 
     // Récupérer toutes les playlists de l'utilisateur
@@ -176,7 +176,7 @@ class PlaylistSelector {
             case 'dense':
                 return this.renderPlaylistDense();
             default:
-                return this.renderPlaylistGrid();
+                return this.renderPlaylistDense();
         }
     }
     
@@ -352,9 +352,6 @@ class PlaylistSelector {
                     <div class="view-controls">
                         <label class="view-label">👁️ Vue:</label>
                         <div class="view-buttons">
-                            <button class="view-btn ${this.currentView === 'grid' ? 'active' : ''}" data-view="grid" title="Vue grille">
-                                ⬜
-                            </button>
                             <button class="view-btn ${this.currentView === 'list' ? 'active' : ''}" data-view="list" title="Vue liste">
                                 ☰
                             </button>
@@ -425,7 +422,7 @@ class PlaylistSelector {
         
         // Charger la préférence de vue sauvegardée
         const savedView = localStorage.getItem('playlist-view');
-        if (savedView && ['grid', 'list', 'dense'].includes(savedView)) {
+        if (savedView && ['list', 'dense'].includes(savedView)) {
             this.currentView = savedView;
         }
         

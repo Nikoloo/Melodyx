@@ -185,17 +185,14 @@
                 // Adapter le fonctionnement pour une page au lieu d'un modal
                 const container = document.getElementById('playlist-container');
                 
-                // Créer une instance du sélecteur
-                const selector = new PlaylistSelector();
-                
-                // Récupérer les playlists
-                await selector.fetchUserPlaylists();
+                // Utiliser l'instance globale du sélecteur
+                await playlistSelector.fetchUserPlaylists();
                 
                 // Afficher le sélecteur directement dans le container
-                container.innerHTML = selector.generatePlaylistSelectorHTML();
+                container.innerHTML = playlistSelector.generatePlaylistSelectorHTML();
                 
                 // Initialiser les événements
-                selector.initializePageEvents();
+                playlistSelector.initializePageEvents();
                 
             } catch (error) {
                 console.error('Erreur lors de l\'initialisation:', error);
