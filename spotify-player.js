@@ -1800,34 +1800,165 @@ class SpotifyPlayer {
         }
     }
     
-    // Mélanger aléatoirement la queue actuelle
+    // Algorithme Fisher-Yates pour un mélange vraiment aléatoire
+    fisherYatesShuffle(array) {
+        const shuffled = [...array]; // Copie pour ne pas modifier l'original
+        
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            // Générer un index aléatoire entre 0 et i
+            const randomIndex = Math.floor(Math.random() * (i + 1));
+            
+            // Échanger les éléments
+            [shuffled[i], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[i]];
+        }
+        
+        return shuffled;
+    }
+
+    // Mélanger aléatoirement la queue actuelle avec true shuffle
     async shuffleCurrentQueue() {
-        logger.info('SpotifyPlayer: Mélange aléatoire de la queue');
+        logger.info('SpotifyPlayer: True shuffle de la queue actuelle');
         
         try {
-            // Obtenir l'état actuel du lecteur
-            const currentState = await this.webApiService.getCurrentPlaybackState();
+            this.showNotification('Récupération de la queue...', 'info');
             
-            if (!currentState || !currentState.context) {
-                this.showNotification('Aucune playlist ou contexte actif à mélanger', 'warning');
+            // Étape 1: Obtenir la queue actuelle
+            const queueData = await this.webApiService.getQueue();
+            
+            if (!queueData || !queueData.queue || queueData.queue.length === 0) {
+                this.showNotification('Aucune piste dans la queue à mélanger', 'warning');
                 return;
             }
             
-            // Activer le mode shuffle de Spotify
-            await this.webApiService.setShuffle(true, this.deviceId);
+            // Étape 2: Extraire les URIs des pistes dans la queue
+            const queueTracks = queueData.queue.map(track => track.uri);
             
-            // Passer à la piste suivante pour déclencher le nouveau ordre
-            await this.webApiService.skipToNext(this.deviceId);
+            if (queueTracks.length < 2) {
+                this.showNotification('Il faut au moins 2 pistes pour mélanger', 'warning');
+                return;
+            }
+            
+            this.showNotification('Application du true shuffle...', 'info');
+            
+            // Étape 3: Appliquer l'algorithme Fisher-Yates
+            const shuffledUris = this.fisherYatesShuffle(queueTracks);
+            
+            // Étape 4: Vider la queue actuelle et la reconstruire
+            await this.reconstructQueue(shuffledUris);
             
             // Notification de succès
-            this.showNotification('Queue mélangée aléatoirement!', 'success');
+            this.showNotification(`Queue vraiment mélangée! ${shuffledUris.length} pistes`, 'success');
             
             // Rafraîchir l'état du lecteur
-            setTimeout(() => this.refreshState(), 500);
+            setTimeout(() => this.refreshState(), 1000);
             
         } catch (error) {
-            logger.error('SpotifyPlayer: Erreur mélange queue', error);
+            logger.error('SpotifyPlayer: Erreur true shuffle queue', error);
             this.showNotification('Erreur lors du mélange de la queue', 'error');
+        }
+    }
+    
+    // Reconstruire la queue avec les pistes mélangées
+    async reconstructQueue(shuffledUris) {
+        try {
+            this.showNotification('Création playlist temporaire...', 'info');
+            
+            // Créer une playlist temporaire avec les pistes mélangées
+            const tempPlaylist = await this.createTempShufflePlaylist(shuffledUris);
+            
+            this.showNotification('Lancement de la playlist mélangée...', 'info');
+            
+            // Jouer la playlist temporaire
+            await this.webApiService.playContext(tempPlaylist.uri, this.deviceId);
+            
+            return tempPlaylist;
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur reconstruction queue', error);
+            throw error;
+        }
+    }
+    
+    // Créer une playlist temporaire pour le shuffle
+    async createTempShufflePlaylist(shuffledUris) {
+        const token = SpotifyAuth.getAccessToken();
+        if (!token) {
+            throw new Error('Token d\'accès non disponible');
+        }
+
+        try {
+            // Récupérer l'ID utilisateur
+            const userResponse = await fetch('https://api.spotify.com/v1/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!userResponse.ok) {
+                throw new Error('Impossible de récupérer les informations utilisateur');
+            }
+
+            const user = await userResponse.json();
+            const userId = user.id;
+
+            // Créer la playlist temporaire
+            const playlistName = `🎲 Queue Shuffle - ${new Date().toLocaleTimeString()}`;
+            const playlistDescription = `Queue mélangée avec l'algorithme Fisher-Yates par Melodyx. ${shuffledUris.length} pistes.`;
+
+            const createPlaylistResponse = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: playlistName,
+                    description: playlistDescription,
+                    public: false
+                })
+            });
+
+            if (!createPlaylistResponse.ok) {
+                throw new Error('Impossible de créer la playlist temporaire');
+            }
+
+            const playlist = await createPlaylistResponse.json();
+
+            // Ajouter les pistes à la playlist (par lots de 100 max)
+            const batchSize = 100;
+
+            for (let i = 0; i < shuffledUris.length; i += batchSize) {
+                const batch = shuffledUris.slice(i, i + batchSize);
+                
+                const addTracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uris: batch
+                    })
+                });
+
+                if (!addTracksResponse.ok) {
+                    console.error(`Erreur lors de l'ajout du lot ${i / batchSize + 1}`);
+                }
+
+                // Petite pause entre les requêtes pour éviter le rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            return {
+                id: playlist.id,
+                uri: playlist.uri,
+                name: playlist.name,
+                trackCount: shuffledUris.length
+            };
+
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur création playlist temporaire', error);
+            throw error;
         }
     }
     
