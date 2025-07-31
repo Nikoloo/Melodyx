@@ -559,7 +559,7 @@ class SpotifyPlayer {
             this.nextTrack();
         });
 
-        // Vertical Volume Slider with Liquid Physics
+        // Horizontal Volume Slider with Progressive Fill
         let volumeTimeout = null;
         const volumeSlider = document.getElementById('volume-input');
         
@@ -568,13 +568,10 @@ class SpotifyPlayer {
             volumeSlider.addEventListener('input', (e) => {
                 const volume = e.target.value;
                 
-                // Trigger liquid physics effects
-                this.triggerLiquidPhysics(volume);
-                
-                // Mettre à jour l'affichage immédiatement
+                // Update display immediately
                 this.updateVolumeDisplay(volume);
                 
-                // Débounce l'appel API
+                // Debounce the API call
                 clearTimeout(volumeTimeout);
                 volumeTimeout = setTimeout(() => {
                     this.setVolume(volume);
@@ -587,157 +584,6 @@ class SpotifyPlayer {
                 // Ensure final value is set immediately
                 clearTimeout(volumeTimeout);
                 this.setVolume(volume);
-                this.triggerLiquidSettling();
-            });
-            
-            // Handle clicks on the liquid container for direct volume setting
-            const liquidContainer = document.querySelector('.liquid-container');
-            if (liquidContainer) {
-                liquidContainer.addEventListener('click', (e) => {
-                    // Prevent event if clicking on the slider input
-                    if (e.target.id === 'volume-input') {
-                        return;
-                    }
-                    
-                    const rect = liquidContainer.getBoundingClientRect();
-                    // For vertical control, calculate from bottom (inverted Y)
-                    const clickY = rect.bottom - e.clientY;
-                    const percentage = Math.max(0, Math.min(100, (clickY / rect.height) * 100));
-                    const volume = Math.round(percentage);
-                    
-                    // Update volume immediately with physics effects
-                    this.updateVolumeDisplay(volume);
-                    this.triggerLiquidSplash(volume);
-                    this.setVolume(volume);
-                });
-            }
-            
-            // Add vertical drag functionality with momentum physics
-            let isDragging = false;
-            let dragTimeout = null;
-            let lastDragY = 0;
-            let dragVelocity = 0;
-            let dragMomentum = null;
-            
-            // Mouse events for desktop
-            liquidContainer?.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                lastDragY = e.clientY;
-                dragVelocity = 0;
-                if (dragMomentum) clearInterval(dragMomentum);
-                e.preventDefault();
-                
-                document.body.classList.add('volume-dragging');
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                
-                const liquidContainer = document.querySelector('.liquid-container');
-                if (!liquidContainer) return;
-                
-                const rect = liquidContainer.getBoundingClientRect();
-                const currentY = e.clientY;
-                
-                // Calculate velocity for momentum physics
-                dragVelocity = (lastDragY - currentY) * 0.5;
-                lastDragY = currentY;
-                
-                // For vertical control, calculate from bottom (inverted Y)
-                const y = rect.bottom - currentY;
-                const percentage = Math.max(0, Math.min(100, (y / rect.height) * 100));
-                const volume = Math.round(percentage);
-                
-                // Update display immediately for smooth feedback
-                this.updateVolumeDisplay(volume);
-                this.triggerLiquidFlow(volume, Math.abs(dragVelocity));
-                
-                // Debounce the API call
-                clearTimeout(dragTimeout);
-                dragTimeout = setTimeout(() => {
-                    this.setVolume(volume);
-                }, 50);
-            });
-            
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    isDragging = false;
-                    document.body.classList.remove('volume-dragging');
-                    
-                    // Apply momentum physics for natural feel
-                    if (Math.abs(dragVelocity) > 2) {
-                        this.applyVolumeMomentum(dragVelocity);
-                    } else {
-                        this.triggerLiquidSettling();
-                    }
-                    
-                    // Ensure final volume is set
-                    clearTimeout(dragTimeout);
-                    const volumeSlider = document.getElementById('volume-input');
-                    if (volumeSlider) {
-                        this.setVolume(volumeSlider.value);
-                    }
-                }
-            });
-            
-            // Touch events for mobile
-            liquidContainer?.addEventListener('touchstart', (e) => {
-                isDragging = true;
-                lastDragY = e.touches[0].clientY;
-                dragVelocity = 0;
-                if (dragMomentum) clearInterval(dragMomentum);
-                e.preventDefault();
-                
-                document.body.classList.add('volume-dragging');
-            });
-            
-            liquidContainer?.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-                
-                const rect = liquidContainer.getBoundingClientRect();
-                const currentY = e.touches[0].clientY;
-                
-                // Calculate velocity for momentum physics
-                dragVelocity = (lastDragY - currentY) * 0.5;
-                lastDragY = currentY;
-                
-                // For vertical control, calculate from bottom (inverted Y)
-                const y = rect.bottom - currentY;
-                const percentage = Math.max(0, Math.min(100, (y / rect.height) * 100));
-                const volume = Math.round(percentage);
-                
-                // Update display immediately for smooth feedback
-                this.updateVolumeDisplay(volume);
-                this.triggerLiquidFlow(volume, Math.abs(dragVelocity));
-                
-                // Debounce the API call
-                clearTimeout(dragTimeout);
-                dragTimeout = setTimeout(() => {
-                    this.setVolume(volume);
-                }, 50);
-                
-                e.preventDefault();
-            });
-            
-            liquidContainer?.addEventListener('touchend', () => {
-                if (isDragging) {
-                    isDragging = false;
-                    document.body.classList.remove('volume-dragging');
-                    
-                    // Apply momentum physics for natural feel
-                    if (Math.abs(dragVelocity) > 2) {
-                        this.applyVolumeMomentum(dragVelocity);
-                    } else {
-                        this.triggerLiquidSettling();
-                    }
-                    
-                    // Ensure final volume is set
-                    clearTimeout(dragTimeout);
-                    const volumeSlider = document.getElementById('volume-input');
-                    if (volumeSlider) {
-                        this.setVolume(volumeSlider.value);
-                    }
-                }
             });
         }
 
@@ -777,7 +623,7 @@ class SpotifyPlayer {
             window.location.reload();
         });
 
-        // Volume toggle button with liquid physics feedback
+        // Volume toggle button
         const volumeBtn = document.getElementById('volume-btn');
         if (volumeBtn) {
             volumeBtn.addEventListener('click', () => {
@@ -787,21 +633,19 @@ class SpotifyPlayer {
                 const currentVolume = parseInt(volumeSlider.value);
                 
                 if (currentVolume > 0) {
-                    // Sauvegarder le volume actuel et couper le son
+                    // Save current volume and mute
                     this.previousVolume = currentVolume;
                     const newVolume = 0;
                     
-                    // Update all volume displays with drain effect
+                    // Update display and set volume
                     this.updateVolumeDisplay(newVolume);
-                    this.triggerLiquidDrain();
                     this.setVolume(newVolume);
                 } else {
-                    // Restaurer le volume précédent ou défaut
+                    // Restore previous volume or default
                     const restoreVolume = this.previousVolume || 50;
                     
-                    // Update all volume displays with fill effect
+                    // Update display and set volume
                     this.updateVolumeDisplay(restoreVolume);
-                    this.triggerLiquidFill(restoreVolume);
                     this.setVolume(restoreVolume);
                 }
             });
@@ -1148,83 +992,26 @@ class SpotifyPlayer {
     
     // Mettre à jour l'affichage du volume avec effets liquides
     updateVolumeDisplay(volume) {
-        const liquidVolumeFill = document.getElementById('liquid-volume-fill');
-        const liquidContainer = document.querySelector('.liquid-container');
         const volumeSlider = document.getElementById('volume-input');
-        const volumeValue = document.getElementById('volume-value');
+        const volumeIcon = document.getElementById('volume-icon');
         
         // Update the volume slider value
         if (volumeSlider) {
             volumeSlider.value = volume;
+            // Update CSS custom property for progressive fill
+            volumeSlider.style.setProperty('--volume-percent', `${volume}%`);
         }
         
-        // Update the liquid fill height for vertical layout with smooth transition
-        if (liquidVolumeFill) {
-            // Set height from bottom (vertical fill)
-            liquidVolumeFill.style.height = `${volume}%`;
-            
-            // Add dynamic liquid physics classes based on volume level
-            liquidVolumeFill.classList.add('volume-changing');
-            
-            // Apply different liquid behaviors based on volume level
-            if (volume > 80) {
-                liquidVolumeFill.classList.add('high-volume');
-            } else {
-                liquidVolumeFill.classList.remove('high-volume');
-            }
-            
-            if (volume < 10) {
-                liquidVolumeFill.classList.add('low-volume');
-            } else {
-                liquidVolumeFill.classList.remove('low-volume');
-            }
-            
-            // Remove animation class after completion
-            setTimeout(() => {
-                liquidVolumeFill.classList.remove('volume-changing');
-            }, 1200);
-            
-            // Activate enhanced bubble effects during volume changes
-            if (liquidContainer) {
-                liquidContainer.classList.add('volume-active');
-                
-                // Add intensity class based on volume level
-                liquidContainer.className = liquidContainer.className.replace(/volume-intensity-\d+/g, '');
-                const intensity = Math.ceil(volume / 25); // 1-4 intensity levels
-                liquidContainer.classList.add(`volume-intensity-${intensity}`);
-                
-                setTimeout(() => {
-                    liquidContainer.classList.remove('volume-active');
-                }, 3000);
-            }
-        }
-        
-        // Update volume percentage display with enhanced visual feedback
-        if (volumeValue) {
-            volumeValue.textContent = `${Math.round(volume)}%`;
-            
-            // Add visual feedback for volume level with smooth transitions
-            volumeValue.classList.remove('volume-critical', 'volume-high', 'volume-medium', 'volume-low');
-            
+        // Update volume icon based on volume level
+        if (volumeIcon) {
             if (volume === 0) {
-                volumeValue.classList.add('volume-muted');
-                volumeValue.style.color = '#666';
-            } else if (volume > 90) {
-                volumeValue.classList.add('volume-critical');
-                volumeValue.style.color = '#ff4757'; // Critical volume warning
-            } else if (volume > 70) {
-                volumeValue.classList.add('volume-high');
-                volumeValue.style.color = '#ff6b6b'; // High volume warning
-            } else if (volume > 40) {
-                volumeValue.classList.add('volume-medium');
-                volumeValue.style.color = '#feca57'; // Medium volume
+                volumeIcon.className = 'fas fa-volume-mute';
+            } else if (volume < 33) {
+                volumeIcon.className = 'fas fa-volume-down';
+            } else if (volume < 67) {
+                volumeIcon.className = 'fas fa-volume-up';
             } else {
-                volumeValue.classList.add('volume-low');
-                volumeValue.style.color = 'var(--primary-color)'; // Normal volume
-            }
-            
-            if (volume > 0) {
-                volumeValue.classList.remove('volume-muted');
+                volumeIcon.className = 'fas fa-volume-up';
             }
         }
     }
@@ -1867,171 +1654,13 @@ class SpotifyPlayer {
         }
     }
     
-    // === LIQUID PHYSICS EFFECTS FOR VOLUME CONTROL ===
     
-    // Trigger liquid physics momentum effect
-    applyVolumeMomentum(velocity) {
-        const volumeSlider = document.getElementById('volume-input');
-        const liquidContainer = document.querySelector('.liquid-container');
-        
-        if (!volumeSlider || !liquidContainer) return;
-        
-        let currentVolume = parseInt(volumeSlider.value);
-        const momentumSteps = Math.min(8, Math.abs(velocity));
-        const volumeChange = velocity > 0 ? 2 : -2;
-        let step = 0;
-        
-        liquidContainer.classList.add('momentum-physics');
-        
-        const momentumInterval = setInterval(() => {
-            step++;
-            currentVolume = Math.max(0, Math.min(100, currentVolume + volumeChange));
-            
-            this.updateVolumeDisplay(currentVolume);
-            this.setVolume(currentVolume);
-            
-            if (step >= momentumSteps) {
-                clearInterval(momentumInterval);
-                liquidContainer.classList.remove('momentum-physics');
-                this.triggerLiquidSettling();
-            }
-        }, 80);
-    }
-    
-    // Trigger liquid physics effects based on volume change type
-    triggerLiquidPhysics(volume) {
-        const liquidContainer = document.querySelector('.liquid-container');
-        const liquidFill = document.getElementById('liquid-volume-fill');
-        
-        if (!liquidContainer || !liquidFill) return;
-        
-        // Remove existing physics classes
-        liquidContainer.classList.remove('liquid-splash', 'liquid-flow', 'volume-active');
-        liquidFill.classList.remove('volume-changing');
-        
-        // Add new physics class based on volume change
-        liquidContainer.classList.add('volume-active');
-        liquidFill.classList.add('volume-changing');
-        
-        // Trigger ripple effect
-        this.createVolumeRipple(volume);
-    }
-    
-    // Trigger liquid splash effect for rapid volume changes
-    triggerLiquidSplash(volume) {
-        const liquidContainer = document.querySelector('.liquid-container');
-        if (!liquidContainer) return;
-        
-        liquidContainer.classList.add('liquid-splash');
-        this.createVolumeRipple(volume);
-        
-        setTimeout(() => {
-            liquidContainer.classList.remove('liquid-splash');
-        }, 800);
-    }
-    
-    // Trigger liquid flow effect for dragging
-    triggerLiquidFlow(volume, velocity) {
-        const liquidContainer = document.querySelector('.liquid-container');
-        const liquidFill = document.getElementById('liquid-volume-fill');
-        
-        if (!liquidContainer || !liquidFill) return;
-        
-        liquidContainer.classList.add('liquid-flow');
-        
-        // Adjust flow intensity based on velocity
-        liquidContainer.style.setProperty('--flow-velocity', Math.min(velocity / 10, 3));
-        
-        setTimeout(() => {
-            liquidContainer.classList.remove('liquid-flow');
-        }, 300);
-    }
-    
-    // Trigger liquid settling effect after interactions
-    triggerLiquidSettling() {
-        const liquidContainer = document.querySelector('.liquid-container');
-        if (!liquidContainer) return;
-        
-        liquidContainer.classList.add('liquid-settling');
-        
-        setTimeout(() => {
-            liquidContainer.classList.remove('liquid-settling');
-        }, 1500);
-    }
-    
-    // Trigger liquid drain effect for mute
-    triggerLiquidDrain() {
-        const liquidContainer = document.querySelector('.liquid-container');
-        const liquidFill = document.getElementById('liquid-volume-fill');
-        
-        if (!liquidContainer || !liquidFill) return;
-        
-        liquidContainer.classList.add('liquid-drain');
-        liquidFill.classList.add('draining');
-        
-        setTimeout(() => {
-            liquidContainer.classList.remove('liquid-drain');
-            liquidFill.classList.remove('draining');
-        }, 1000);
-    }
-    
-    // Trigger liquid fill effect for unmute
-    triggerLiquidFill(targetVolume) {
-        const liquidContainer = document.querySelector('.liquid-container');
-        const liquidFill = document.getElementById('liquid-volume-fill');
-        
-        if (!liquidContainer || !liquidFill) return;
-        
-        liquidContainer.classList.add('liquid-fill');
-        liquidFill.classList.add('filling');
-        
-        // Animate fill based on target volume
-        liquidFill.style.setProperty('--fill-target', `${targetVolume}%`);
-        
-        setTimeout(() => {
-            liquidContainer.classList.remove('liquid-fill');
-            liquidFill.classList.remove('filling');
-        }, 1200);
-    }
-    
-    // Create ripple effect at volume level position
-    createVolumeRipple(volume) {
-        const liquidContainer = document.querySelector('.liquid-container');
-        if (!liquidContainer) return;
-        
-        // Remove existing ripples
-        const existingRipples = liquidContainer.querySelectorAll('.volume-ripple');
-        existingRipples.forEach(ripple => ripple.remove());
-        
-        // Create new ripple element
-        const ripple = document.createElement('div');
-        ripple.className = 'volume-ripple';
-        
-        // Position ripple at the current volume level (from bottom)
-        const ripplePosition = volume; // Percentage from bottom
-        ripple.style.bottom = `${ripplePosition}%`;
-        
-        liquidContainer.appendChild(ripple);
-        
-        // Remove ripple after animation
-        setTimeout(() => {
-            if (ripple.parentNode) {
-                ripple.parentNode.removeChild(ripple);
-            }
-        }, 1000);
-    }
-    
-    // Enhanced volume initialization with liquid effects
+    // Initialize volume display
     initializeVolumeDisplay() {
         const initialVolume = this.volume * 100; // Convert from 0-1 to 0-100
         this.updateVolumeDisplay(initialVolume);
         
-        // Trigger initial liquid fill animation
-        setTimeout(() => {
-            this.triggerLiquidFill(initialVolume);
-        }, 500);
-        
-        logger.debug('SpotifyPlayer: Vertical liquid volume display initialized', { volume: initialVolume });
+        logger.debug('SpotifyPlayer: Volume display initialized', { volume: initialVolume });
     }
     
     // Afficher une notification de transfert

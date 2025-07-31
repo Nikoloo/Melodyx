@@ -95,40 +95,13 @@
                     </button>
                 </div>
                 
-                <!-- Vertical Volume Control with Liquid Physics -->
-                <div class="vertical-volume-control">
-                    <div class="liquid-container">
-                        <div class="liquid-background">
-                            <div class="liquid-bubbles">
-                                <div class="bubble bubble-1"></div>
-                                <div class="bubble bubble-2"></div>
-                                <div class="bubble bubble-3"></div>
-                                <div class="bubble bubble-4"></div>
-                                <div class="bubble bubble-5"></div>
-                            </div>
-                        </div>
-                        <div class="liquid-fill" id="liquid-volume-fill">
-                            <div class="liquid-surface">
-                                <div class="wave wave-1"></div>
-                                <div class="wave wave-2"></div>
-                                <div class="wave wave-3"></div>
-                            </div>
-                            <div class="liquid-droplets">
-                                <div class="droplet droplet-1"></div>
-                                <div class="droplet droplet-2"></div>
-                                <div class="droplet droplet-3"></div>
-                            </div>
-                            <div class="liquid-physics">
-                                <div class="liquid-particle particle-1"></div>
-                                <div class="liquid-particle particle-2"></div>
-                                <div class="liquid-particle particle-3"></div>
-                                <div class="liquid-particle particle-4"></div>
-                            </div>
-                        </div>
-                        <input type="range" id="volume-input" min="0" max="100" value="50" class="vertical-volume-input" orient="vertical">
+                <!-- Horizontal Volume Control -->
+                <div class="horizontal-volume-control">
+                    <div class="volume-icon" id="volume-btn">
+                        <i class="fas fa-volume-up" id="volume-icon"></i>
                     </div>
-                    <div class="volume-level-indicator">
-                        <span id="volume-value" class="volume-percentage">50%</span>
+                    <div class="volume-slider-container">
+                        <input type="range" id="volume-input" min="0" max="100" value="50" class="horizontal-volume-slider">
                     </div>
                 </div>
                 
