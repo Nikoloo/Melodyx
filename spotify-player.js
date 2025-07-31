@@ -1072,11 +1072,21 @@ class SpotifyPlayer {
             });
         }
         
+        // Bouton de queue
+        const queueBtn = document.getElementById('queue-btn');
+        if (queueBtn) {
+            queueBtn.addEventListener('click', () => {
+                this.openQueueModal();
+            });
+        }
+        
         // Fermeture des modales
         const searchCloseBtn = document.getElementById('search-close-btn');
         const playlistCloseBtn = document.getElementById('playlist-close-btn');
+        const queueCloseBtn = document.getElementById('queue-close-btn');
         const searchModal = document.getElementById('search-modal');
         const playlistModal = document.getElementById('playlist-modal');
+        const queueModal = document.getElementById('queue-modal');
         
         if (searchCloseBtn) {
             searchCloseBtn.addEventListener('click', () => {
@@ -1087,6 +1097,12 @@ class SpotifyPlayer {
         if (playlistCloseBtn) {
             playlistCloseBtn.addEventListener('click', () => {
                 this.closePlaylistModal();
+            });
+        }
+        
+        if (queueCloseBtn) {
+            queueCloseBtn.addEventListener('click', () => {
+                this.closeQueueModal();
             });
         }
         
@@ -1103,6 +1119,14 @@ class SpotifyPlayer {
             playlistModal.addEventListener('click', (e) => {
                 if (e.target === playlistModal) {
                     this.closePlaylistModal();
+                }
+            });
+        }
+        
+        if (queueModal) {
+            queueModal.addEventListener('click', (e) => {
+                if (e.target === queueModal) {
+                    this.closeQueueModal();
                 }
             });
         }
@@ -1221,6 +1245,38 @@ class SpotifyPlayer {
         logger.info('SpotifyPlayer: Fermeture modale playlist');
         
         const modal = document.getElementById('playlist-modal');
+        
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+    }
+    
+    // Ouvrir la modale de queue
+    async openQueueModal() {
+        logger.info('SpotifyPlayer: Ouverture modale queue');
+        
+        const modal = document.getElementById('queue-modal');
+        
+        if (modal) {
+            modal.style.display = 'flex';
+            // Animation d'entrée
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+            
+            // Charger la queue
+            await this.loadCurrentQueue();
+        }
+    }
+    
+    // Fermer la modale de queue
+    closeQueueModal() {
+        logger.info('SpotifyPlayer: Fermeture modale queue');
+        
+        const modal = document.getElementById('queue-modal');
         
         if (modal) {
             modal.classList.remove('show');
@@ -1576,6 +1632,7 @@ class SpotifyPlayer {
         
         // Attacher les événements
         this.attachPlaylistEvents();
+        this.attachPlaylistSortEvents();
     }
     
     // Créer le HTML pour une playlist
@@ -1607,6 +1664,132 @@ class SpotifyPlayer {
                 this.playPlaylist(item);
             });
         });
+    }
+    
+    // Attacher les événements de tri des playlists
+    attachPlaylistSortEvents() {
+        const sortSelect = document.getElementById('playlist-sort-select');
+        
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                this.sortPlaylists(e.target.value);
+            });
+        }
+    }
+    
+    // Trier les playlists
+    sortPlaylists(sortType) {
+        if (!this.userPlaylists) return;
+        
+        let sortedPlaylists = [...this.userPlaylists];
+        
+        switch (sortType) {
+            case 'alphabetical':
+                sortedPlaylists.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case 'track-count':
+                sortedPlaylists.sort((a, b) => {
+                    const aCount = a.tracks?.total || 0;
+                    const bCount = b.tracks?.total || 0;
+                    return bCount - aCount; // Tri décroissant
+                });
+                break;
+            default:
+                break;
+        }
+        
+        this.displayUserPlaylists(sortedPlaylists);
+    }
+    
+    // Charger la queue actuelle
+    async loadCurrentQueue() {
+        logger.info('SpotifyPlayer: Chargement queue actuelle');
+        
+        const queueLoading = document.getElementById('queue-loading');
+        const queueList = document.getElementById('queue-list');
+        
+        if (queueLoading) {
+            queueLoading.style.display = 'block';
+        }
+        
+        try {
+            const queueData = await this.webApiService.getQueue();
+            this.displayQueue(queueData);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur chargement queue', error);
+            this.showQueueError('Erreur lors du chargement de la liste d\'attente');
+        } finally {
+            if (queueLoading) {
+                queueLoading.style.display = 'none';
+            }
+        }
+    }
+    
+    // Afficher la queue
+    displayQueue(queueData) {
+        const queueList = document.getElementById('queue-list');
+        
+        if (!queueList) return;
+        
+        const currentTrack = queueData.currently_playing;
+        const queueTracks = queueData.queue || [];
+        
+        if (!currentTrack && queueTracks.length === 0) {
+            queueList.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <p>Aucune piste en cours de lecture</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let queueHTML = '';
+        
+        // Ajouter la piste en cours
+        if (currentTrack) {
+            queueHTML += this.createQueueItemHTML(currentTrack, 0, true);
+        }
+        
+        // Ajouter les pistes suivantes
+        queueTracks.forEach((track, index) => {
+            queueHTML += this.createQueueItemHTML(track, index + 1, false);
+        });
+        
+        queueList.innerHTML = queueHTML;
+    }
+    
+    // Créer le HTML pour un item de queue
+    createQueueItemHTML(track, position, isCurrent) {
+        const imageUrl = track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || '';
+        const trackName = track.name;
+        const artistName = track.artists?.map(a => a.name).join(', ') || 'Artiste inconnu';
+        
+        return `
+            <div class="queue-item ${isCurrent ? 'current' : ''}" data-uri="${track.uri}">
+                <div class="queue-thumbnail">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${trackName}">` : '🎵'}
+                </div>
+                <div class="queue-details">
+                    <div class="queue-track-name">${trackName}</div>
+                    <div class="queue-track-artist">${artistName}</div>
+                </div>
+                <div class="queue-position">${isCurrent ? 'En cours' : position}</div>
+            </div>
+        `;
+    }
+    
+    // Afficher une erreur de queue
+    showQueueError(message) {
+        const queueList = document.getElementById('queue-list');
+        
+        if (queueList) {
+            queueList.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--accent-color);">
+                    <p>${message}</p>
+                </div>
+            `;
+        }
     }
     
     // Jouer une playlist
