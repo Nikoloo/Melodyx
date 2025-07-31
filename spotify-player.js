@@ -1080,6 +1080,14 @@ class SpotifyPlayer {
             });
         }
         
+        // Bouton de vrai mode aléatoire
+        const trueShuffleBtn = document.getElementById('true-shuffle-btn');
+        if (trueShuffleBtn) {
+            trueShuffleBtn.addEventListener('click', () => {
+                this.shuffleCurrentQueue();
+            });
+        }
+        
         // Fermeture des modales
         const searchCloseBtn = document.getElementById('search-close-btn');
         const playlistCloseBtn = document.getElementById('playlist-close-btn');
@@ -1790,6 +1798,75 @@ class SpotifyPlayer {
                 </div>
             `;
         }
+    }
+    
+    // Mélanger aléatoirement la queue actuelle
+    async shuffleCurrentQueue() {
+        logger.info('SpotifyPlayer: Mélange aléatoire de la queue');
+        
+        try {
+            // Obtenir l'état actuel du lecteur
+            const currentState = await this.webApiService.getCurrentPlaybackState();
+            
+            if (!currentState || !currentState.context) {
+                this.showNotification('Aucune playlist ou contexte actif à mélanger', 'warning');
+                return;
+            }
+            
+            // Activer le mode shuffle de Spotify
+            await this.webApiService.setShuffle(true, this.deviceId);
+            
+            // Passer à la piste suivante pour déclencher le nouveau ordre
+            await this.webApiService.skipToNext(this.deviceId);
+            
+            // Notification de succès
+            this.showNotification('Queue mélangée aléatoirement!', 'success');
+            
+            // Rafraîchir l'état du lecteur
+            setTimeout(() => this.refreshState(), 500);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur mélange queue', error);
+            this.showNotification('Erreur lors du mélange de la queue', 'error');
+        }
+    }
+    
+    // Afficher une notification temporaire
+    showNotification(message, type = 'info') {
+        // Créer la notification si elle n'existe pas
+        let notification = document.getElementById('shuffle-notification');
+        
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'shuffle-notification';
+            notification.className = 'shuffle-notification';
+            document.body.appendChild(notification);
+        }
+        
+        // Définir le style selon le type
+        const colors = {
+            success: '#1DB954',
+            warning: '#ff9500',
+            error: '#ff4444',
+            info: '#1e90ff'
+        };
+        
+        notification.innerHTML = `
+            <div class="notification-content" style="background: ${colors[type]};">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                </svg>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        // Afficher la notification
+        notification.classList.add('show');
+        
+        // Masquer après 3 secondes
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
     }
     
     // Jouer une playlist

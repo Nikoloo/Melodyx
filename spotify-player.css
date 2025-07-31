@@ -1528,8 +1528,9 @@
     border-radius: 4px;
 }
 
-/* Notification de transfert */
-.transfer-notification {
+/* Notifications */
+.transfer-notification,
+.shuffle-notification {
     position: fixed;
     top: 20px;
     right: 20px;
@@ -1539,36 +1540,45 @@
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.transfer-notification.show {
+.transfer-notification.show,
+.shuffle-notification.show {
     opacity: 1;
     transform: translateX(0);
 }
 
-.transfer-notification .notification-content {
+.transfer-notification .notification-content,
+.shuffle-notification .notification-content {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: var(--primary-color);
     color: white;
     padding: 16px 24px;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     font-size: 14px;
     font-weight: 500;
 }
 
-.transfer-notification svg {
+.transfer-notification .notification-content {
+    background: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+}
+
+.transfer-notification svg,
+.shuffle-notification svg {
     flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
-    .transfer-notification {
+    .transfer-notification,
+    .shuffle-notification {
         top: 10px;
         right: 10px;
         left: 10px;
     }
     
-    .transfer-notification .notification-content {
+    .transfer-notification .notification-content,
+    .shuffle-notification .notification-content {
         padding: 12px 16px;
         font-size: 13px;
     }
