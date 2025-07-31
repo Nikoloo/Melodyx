@@ -49,7 +49,15 @@ class SpotifyWebAPIService {
             throw new Error(`API Error ${response.status}: ${error}`);
         }
         
-        return response.json();
+        // Vérifier le content-type avant de parser en JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // Si ce n'est pas du JSON, retourner le texte ou null pour les opérations qui n'ont pas de contenu
+            const text = await response.text();
+            return text || null;
+        }
     }
 
     // === CONTRÔLES DE LECTURE ===
@@ -639,23 +647,39 @@ class SpotifyWebAPIService {
                 throw new Error('No tracks to play');
             }
             
-            // Pour la première batch, on utilise playTracks pour démarrer la lecture
-            const firstBatch = trackUris.slice(0, batchSize);
-            await this.playTracks(firstBatch, deviceId);
+            // Pour les grandes listes, utiliser une approche plus simple
+            // Jouer seulement les premières pistes pour démarrer
+            const maxInitialTracks = Math.min(trackUris.length, batchSize);
+            const initialBatch = trackUris.slice(0, maxInitialTracks);
             
-            // Pour les batches suivantes, on les ajoute à la queue
-            for (let i = batchSize; i < trackUris.length; i += batchSize) {
-                const batch = trackUris.slice(i, Math.min(i + batchSize, trackUris.length));
+            await this.playTracks(initialBatch, deviceId);
+            
+            // Si il y a plus de pistes, les ajouter progressivement à la queue
+            if (trackUris.length > maxInitialTracks) {
+                // Attendre un peu que la lecture démarre
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Ajouter chaque piste de la batch à la queue
-                for (const uri of batch) {
-                    await this.addToQueue(uri);
-                    // Petit délai pour éviter de surcharger l'API
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                const remainingTracks = trackUris.slice(maxInitialTracks);
+                
+                // Ajouter les pistes restantes par petits groupes pour éviter de surcharger l'API
+                for (let i = 0; i < remainingTracks.length; i++) {
+                    try {
+                        await this.addToQueue(remainingTracks[i]);
+                        // Délai plus court pour une expérience plus fluide
+                        if (i % 10 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                    } catch (queueError) {
+                        logger.warn('SpotifyWebAPIService: Failed to add track to queue', { 
+                            uri: remainingTracks[i], 
+                            error: queueError.message 
+                        });
+                        // Continuer même si certaines pistes échouent
+                    }
                 }
             }
             
-            logger.info('SpotifyWebAPIService: All tracks queued successfully');
+            logger.info('SpotifyWebAPIService: Batch playback started successfully');
             
         } catch (error) {
             logger.error('SpotifyWebAPIService: Error playing tracks in batches', error);
