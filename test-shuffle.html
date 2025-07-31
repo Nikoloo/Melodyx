@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Shuffle - Melodyx</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #121212;
+            color: #fff;
+        }
+        h1 {
+            color: #1DB954;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        .success {
+            color: #1DB954;
+        }
+        .warning {
+            color: #ff9500;
+        }
+        .error {
+            color: #ff4444;
+        }
+        code {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test du nouveau bouton Shuffle</h1>
+    
+    <div class="test-section">
+        <h2>Modifications apportées</h2>
+        <div class="test-item success">
+            ✅ <strong>API native Spotify:</strong> Le bouton utilise maintenant <code>webApiService.toggleShuffle()</code> au lieu de créer une playlist temporaire
+        </div>
+        <div class="test-item success">
+            ✅ <strong>État persistant:</strong> L'état du shuffle est suivi avec <code>isShuffleActive</code> et synchronisé avec Spotify
+        </div>
+        <div class="test-item success">
+            ✅ <strong>Feedback visuel:</strong> Le bouton affiche l'état actif/inactif avec la classe CSS <code>.active</code>
+        </div>
+        <div class="test-item success">
+            ✅ <strong>Code nettoyé:</strong> Suppression des méthodes <code>reconstructQueue()</code> et <code>createTempShufflePlaylist()</code>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>CSS amélioré</h2>
+        <div class="test-item success">
+            ✅ <strong>Centrage:</strong> Les contrôles média sont mieux centrés avec <code>max-width: 400px</code> et <code>gap: 24px</code>
+        </div>
+        <div class="test-item success">
+            ✅ <strong>Volume flexible:</strong> La barre de volume utilise <code>flex: 1</code> avec min/max width
+        </div>
+        <div class="test-item success">
+            ✅ <strong>Responsive:</strong> Ajustements pour mobile avec des gaps réduits
+        </div>
+        <div class="test-item success">
+            ✅ <strong>État actif:</strong> Styles pour <code>.media-control-btn.active</code> avec couleur Spotify
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Comportement attendu</h2>
+        <div class="test-item">
+            1. <strong>Premier clic:</strong> Active le shuffle Spotify natif, bouton devient vert, notification "Mode aléatoire activé"
+        </div>
+        <div class="test-item">
+            2. <strong>Second clic:</strong> Désactive le shuffle, bouton redevient gris, notification "Mode aléatoire désactivé"
+        </div>
+        <div class="test-item">
+            3. <strong>Synchronisation:</strong> L'état se met à jour automatiquement lors du rafraîchissement
+        </div>
+        <div class="test-item">
+            4. <strong>Erreurs:</strong> En cas d'erreur API, l'état est restauré et une notification d'erreur apparaît
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Tests à effectuer</h2>
+        <div class="test-item warning">
+            ⚠️ Vérifier que le shuffle s'active/désactive correctement dans Spotify
+        </div>
+        <div class="test-item warning">
+            ⚠️ Tester le comportement sur différents appareils (mobile, desktop)
+        </div>
+        <div class="test-item warning">
+            ⚠️ Confirmer que l'état persiste après un rafraîchissement de page
+        </div>
+        <div class="test-item warning">
+            ⚠️ Vérifier l'alignement des trois boutons sur différentes tailles d'écran
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Comparaison avec l'ancienne méthode</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <th style="text-align: left; padding: 10px; border-bottom: 1px solid #444;">Aspect</th>
+                <th style="text-align: left; padding: 10px; border-bottom: 1px solid #444;">Ancienne méthode</th>
+                <th style="text-align: left; padding: 10px; border-bottom: 1px solid #444;">Nouvelle méthode</th>
+            </tr>
+            <tr>
+                <td style="padding: 10px;">Performance</td>
+                <td style="padding: 10px; color: #ff9500;">Lente (création playlist)</td>
+                <td style="padding: 10px; color: #1DB954;">Rapide (API native)</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px;">Intégration</td>
+                <td style="padding: 10px; color: #ff9500;">Complexe</td>
+                <td style="padding: 10px; color: #1DB954;">Simple et native</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px;">Maintenance</td>
+                <td style="padding: 10px; color: #ff9500;">~200 lignes de code</td>
+                <td style="padding: 10px; color: #1DB954;">~30 lignes de code</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

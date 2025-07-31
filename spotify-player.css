@@ -253,8 +253,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 20px;
+    gap: 24px;
     margin: 2rem auto 0;
+    padding: 0 20px;
+    max-width: 400px;
 }
 
 /* Queue Button */
@@ -279,13 +281,29 @@
     box-shadow: 0 8px 25px rgba(29, 185, 84, 0.3);
 }
 
+.media-control-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+}
+
+.media-control-btn.active:hover {
+    background: #1ed760;
+    border-color: #1ed760;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(29, 185, 84, 0.4);
+}
+
 /* Horizontal Volume Control */
 .horizontal-volume-control {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    width: 180px;
+    min-width: 160px;
+    max-width: 200px;
+    flex: 1;
 }
 
 .volume-icon {
@@ -618,6 +636,15 @@
         right: 1rem;
     }
     
+    /* Media controls responsive */
+    .media-controls {
+        gap: 16px;
+        padding: 0 10px;
+    }
+    
+    .horizontal-volume-control {
+        min-width: 140px;
+    }
     
     .header-actions {
         top: 1rem;
