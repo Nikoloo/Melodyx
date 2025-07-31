@@ -480,6 +480,188 @@ class SpotifyWebAPIService {
         
         return this.apiRequest(`/artists/${artistId}/top-tracks?market=${market}`);
     }
+
+    // === TRUE SHUFFLE ===
+
+    // Obtenir toutes les pistes d'une playlist (avec pagination automatique)
+    async getAllPlaylistTracks(playlistId) {
+        logger.debug('SpotifyWebAPIService: Get all playlist tracks', { playlistId });
+        
+        try {
+            let allTracks = [];
+            let offset = 0;
+            const limit = 100; // Maximum autorisé par l'API
+            let hasMore = true;
+            
+            while (hasMore) {
+                const response = await this.getPlaylistTracks(playlistId, limit, offset);
+                const tracks = response.items || [];
+                
+                // Filtrer les pistes null et extraire les objets track
+                const validTracks = tracks
+                    .filter(item => item && item.track && item.track.id)
+                    .map(item => item.track);
+                
+                allTracks.push(...validTracks);
+                
+                hasMore = tracks.length === limit && response.next;
+                offset += limit;
+                
+                // Sécurité: éviter les boucles infinies
+                if (offset > 10000) break;
+            }
+            
+            logger.info('SpotifyWebAPIService: Retrieved all playlist tracks', { 
+                playlistId, 
+                count: allTracks.length 
+            });
+            
+            return allTracks;
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error getting all playlist tracks', error);
+            return [];
+        }
+    }
+
+    // Obtenir toutes les pistes d'un album (avec pagination si nécessaire)
+    async getAllAlbumTracks(albumId) {
+        logger.debug('SpotifyWebAPIService: Get all album tracks', { albumId });
+        
+        try {
+            let allTracks = [];
+            let offset = 0;
+            const limit = 50; // Maximum autorisé par l'API pour les albums
+            let hasMore = true;
+            
+            while (hasMore) {
+                const response = await this.getAlbumTracks(albumId, limit, offset);
+                const tracks = response.items || [];
+                
+                // Les pistes d'album ont une structure légèrement différente
+                // Ajouter les informations d'album manquantes
+                const album = await this.getAlbum(albumId);
+                const tracksWithAlbum = tracks.map(track => ({
+                    ...track,
+                    album: {
+                        id: album.id,
+                        name: album.name,
+                        images: album.images,
+                        uri: album.uri
+                    }
+                }));
+                
+                allTracks.push(...tracksWithAlbum);
+                
+                hasMore = tracks.length === limit && response.next;
+                offset += limit;
+                
+                // Sécurité: éviter les boucles infinies
+                if (offset > 500) break; // Les albums ont rarement plus de 500 pistes
+            }
+            
+            logger.info('SpotifyWebAPIService: Retrieved all album tracks', { 
+                albumId, 
+                count: allTracks.length 
+            });
+            
+            return allTracks;
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error getting all album tracks', error);
+            return [];
+        }
+    }
+
+    // Obtenir le contexte de lecture actuel avec toutes ses pistes
+    async getCurrentContextTracks() {
+        logger.debug('SpotifyWebAPIService: Get current context tracks');
+        
+        try {
+            const playbackState = await this.getPlaybackState();
+            
+            if (!playbackState || !playbackState.context) {
+                logger.warn('SpotifyWebAPIService: No context available');
+                return { tracks: [], contextType: null, contextUri: null };
+            }
+            
+            const context = playbackState.context;
+            const contextType = context.type; // 'playlist', 'album', 'artist'
+            const contextUri = context.uri;
+            
+            // Extraire l'ID du contexte depuis l'URI
+            const contextId = contextUri.split(':').pop();
+            
+            let tracks = [];
+            
+            switch (contextType) {
+                case 'playlist':
+                    tracks = await this.getAllPlaylistTracks(contextId);
+                    break;
+                    
+                case 'album':
+                    tracks = await this.getAllAlbumTracks(contextId);
+                    break;
+                    
+                case 'artist':
+                    // Pour un artiste, on récupère ses top tracks
+                    const topTracksResponse = await this.getArtistTopTracks(contextId);
+                    tracks = topTracksResponse.tracks || [];
+                    break;
+                    
+                default:
+                    logger.warn('SpotifyWebAPIService: Unknown context type', { contextType });
+            }
+            
+            return {
+                tracks,
+                contextType,
+                contextUri,
+                contextId
+            };
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error getting context tracks', error);
+            return { tracks: [], contextType: null, contextUri: null };
+        }
+    }
+
+    // Jouer des pistes en mode batch (pour contourner la limite d'URIs)
+    async playTracksInBatches(trackUris, deviceId = null, batchSize = 50) {
+        logger.info('SpotifyWebAPIService: Play tracks in batches', { 
+            totalTracks: trackUris.length, 
+            batchSize,
+            deviceId 
+        });
+        
+        try {
+            if (trackUris.length === 0) {
+                throw new Error('No tracks to play');
+            }
+            
+            // Pour la première batch, on utilise playTracks pour démarrer la lecture
+            const firstBatch = trackUris.slice(0, batchSize);
+            await this.playTracks(firstBatch, deviceId);
+            
+            // Pour les batches suivantes, on les ajoute à la queue
+            for (let i = batchSize; i < trackUris.length; i += batchSize) {
+                const batch = trackUris.slice(i, Math.min(i + batchSize, trackUris.length));
+                
+                // Ajouter chaque piste de la batch à la queue
+                for (const uri of batch) {
+                    await this.addToQueue(uri);
+                    // Petit délai pour éviter de surcharger l'API
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+            
+            logger.info('SpotifyWebAPIService: All tracks queued successfully');
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error playing tracks in batches', error);
+            throw error;
+        }
+    }
 }
 
 // Export global

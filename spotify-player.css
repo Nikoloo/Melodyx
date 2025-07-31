@@ -11,6 +11,92 @@
     justify-content: center;
 }
 
+/* True Shuffle Styles */
+.media-control-btn.loading {
+    position: relative;
+    opacity: 0.7;
+}
+
+.media-control-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.media-control-btn.true-shuffle-active {
+    background: var(--primary-color) !important;
+    color: white !important;
+}
+
+.media-control-btn.true-shuffle-active:hover {
+    background: var(--primary-hover) !important;
+}
+
+/* Notification pour le True Shuffle */
+.shuffle-notification {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    max-width: 320px;
+}
+
+.shuffle-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.notification-content svg {
+    flex-shrink: 0;
+}
+
+/* Transfer notification */
+.transfer-notification {
+    position: fixed;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    max-width: 400px;
+}
+
+.transfer-notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.transfer-notification .notification-content {
+    background: var(--success-color);
+}
+
 /* Status et connexion */
 .connection-status {
     text-align: center;

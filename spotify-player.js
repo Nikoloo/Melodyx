@@ -63,6 +63,15 @@ class SpotifyPlayer {
         this.uiEventsAttached = false;
         this.isShuffleActive = false; // État du shuffle
         
+        // True Shuffle state
+        this.trueShuffle = {
+            isActive: false,
+            originalTracks: [],
+            shuffledTracks: [],
+            currentContext: null,
+            playbackStarted: false
+        };
+        
         // Web API service instance
         this.webApiService = new SpotifyWebAPIService();
         
@@ -1814,6 +1823,8 @@ class SpotifyPlayer {
         }
     }
     
+    // === ALGORITHMES DE TRUE SHUFFLE ===
+    
     // Algorithme Fisher-Yates pour un mélange vraiment aléatoire
     fisherYatesShuffle(array) {
         const shuffled = [...array]; // Copie pour ne pas modifier l'original
@@ -1828,38 +1839,201 @@ class SpotifyPlayer {
         
         return shuffled;
     }
+    
+    // Shuffle par batch pour les grandes playlists
+    batchShuffle(array, batchSize = 50) {
+        if (array.length <= batchSize) {
+            return this.fisherYatesShuffle(array);
+        }
+        
+        const batches = [];
+        for (let i = 0; i < array.length; i += batchSize) {
+            const batch = array.slice(i, Math.min(i + batchSize, array.length));
+            batches.push(this.fisherYatesShuffle(batch));
+        }
+        
+        // Mélanger les batches entre elles
+        const shuffledBatches = this.fisherYatesShuffle(batches);
+        
+        // Aplatir le résultat
+        return shuffledBatches.flat();
+    }
+    
+    // Shuffle avec option no-adjacent (éviter les pistes consécutives du même artiste)
+    noAdjacentShuffle(tracks) {
+        if (tracks.length < 3) {
+            return this.fisherYatesShuffle(tracks);
+        }
+        
+        // Grouper les pistes par artiste
+        const tracksByArtist = new Map();
+        tracks.forEach(track => {
+            const artistId = track.artists?.[0]?.id || 'unknown';
+            if (!tracksByArtist.has(artistId)) {
+                tracksByArtist.set(artistId, []);
+            }
+            tracksByArtist.get(artistId).push(track);
+        });
+        
+        // Si un seul artiste, faire un shuffle normal
+        if (tracksByArtist.size === 1) {
+            return this.fisherYatesShuffle(tracks);
+        }
+        
+        // Créer une liste shufflée en alternant les artistes
+        const shuffled = [];
+        const artistArrays = Array.from(tracksByArtist.values()).map(tracks => this.fisherYatesShuffle(tracks));
+        
+        while (artistArrays.some(arr => arr.length > 0)) {
+            // Parcourir chaque artiste et prendre une piste
+            for (let i = 0; i < artistArrays.length; i++) {
+                if (artistArrays[i].length > 0) {
+                    shuffled.push(artistArrays[i].shift());
+                }
+            }
+        }
+        
+        return shuffled;
+    }
 
     // Mélanger aléatoirement la queue actuelle avec true shuffle
     async shuffleCurrentQueue() {
-        logger.info('SpotifyPlayer: Toggle shuffle mode');
+        logger.info('SpotifyPlayer: Toggle TRUE shuffle mode');
         
         try {
-            // Inverser l'état du shuffle
-            this.isShuffleActive = !this.isShuffleActive;
-            
-            // Utiliser l'API native de Spotify pour activer/désactiver le shuffle
-            await this.webApiService.toggleShuffle(this.isShuffleActive);
-            
-            // Mettre à jour l'apparence du bouton
-            const shuffleBtn = document.getElementById('true-shuffle-btn');
-            if (shuffleBtn) {
-                if (this.isShuffleActive) {
-                    shuffleBtn.classList.add('active');
-                    this.showNotification('Mode aléatoire activé', 'success');
-                } else {
-                    shuffleBtn.classList.remove('active');
-                    this.showNotification('Mode aléatoire désactivé', 'info');
-                }
+            // Si le true shuffle est actif, le désactiver
+            if (this.trueShuffle.isActive) {
+                await this.disableTrueShuffle();
+                return;
             }
             
-            // Rafraîchir l'état du lecteur après un court délai
-            setTimeout(() => this.refreshState(), 500);
+            // Afficher un indicateur de chargement
+            const shuffleBtn = document.getElementById('true-shuffle-btn');
+            if (shuffleBtn) {
+                shuffleBtn.classList.add('loading');
+            }
+            
+            // Récupérer le contexte actuel et toutes ses pistes
+            const contextData = await this.webApiService.getCurrentContextTracks();
+            
+            if (!contextData.tracks || contextData.tracks.length === 0) {
+                this.showNotification('Aucune playlist ou album en cours de lecture', 'warning');
+                if (shuffleBtn) shuffleBtn.classList.remove('loading');
+                return;
+            }
+            
+            logger.info('SpotifyPlayer: Context tracks retrieved', { 
+                count: contextData.tracks.length,
+                type: contextData.contextType 
+            });
+            
+            // Sauvegarder l'état original
+            this.trueShuffle.originalTracks = [...contextData.tracks];
+            this.trueShuffle.currentContext = contextData;
+            
+            // Appliquer l'algorithme de shuffle approprié
+            let shuffledTracks;
+            
+            if (contextData.tracks.length > 100) {
+                // Pour les grandes playlists, utiliser le batch shuffle
+                logger.info('SpotifyPlayer: Using batch shuffle for large playlist');
+                shuffledTracks = this.batchShuffle(contextData.tracks);
+            } else if (contextData.tracks.length > 20) {
+                // Pour les playlists moyennes, option no-adjacent peut être utile
+                logger.info('SpotifyPlayer: Using no-adjacent shuffle');
+                shuffledTracks = this.noAdjacentShuffle(contextData.tracks);
+            } else {
+                // Pour les petites playlists, Fisher-Yates standard
+                logger.info('SpotifyPlayer: Using standard Fisher-Yates shuffle');
+                shuffledTracks = this.fisherYatesShuffle(contextData.tracks);
+            }
+            
+            // Sauvegarder les pistes shufflées
+            this.trueShuffle.shuffledTracks = shuffledTracks;
+            
+            // Extraire les URIs des pistes shufflées
+            const shuffledUris = shuffledTracks.map(track => track.uri);
+            
+            // Désactiver le shuffle natif de Spotify
+            await this.webApiService.toggleShuffle(false);
+            
+            // Jouer les pistes dans l'ordre shufflé
+            if (shuffledUris.length > 50) {
+                // Pour les grandes playlists, utiliser le batch playback
+                await this.webApiService.playTracksInBatches(shuffledUris, this.deviceId);
+            } else {
+                // Pour les petites playlists, jouer directement
+                await this.webApiService.playTracks(shuffledUris, this.deviceId);
+            }
+            
+            // Marquer le true shuffle comme actif
+            this.trueShuffle.isActive = true;
+            this.trueShuffle.playbackStarted = true;
+            
+            // Mettre à jour l'interface
+            if (shuffleBtn) {
+                shuffleBtn.classList.remove('loading');
+                shuffleBtn.classList.add('active', 'true-shuffle-active');
+            }
+            
+            // Afficher la notification de succès
+            this.showNotification(
+                `True Shuffle activé - ${shuffledTracks.length} pistes mélangées aléatoirement`,
+                'success'
+            );
+            
+            // Rafraîchir l'état après un court délai
+            setTimeout(() => this.refreshState(), 1000);
             
         } catch (error) {
-            logger.error('SpotifyPlayer: Erreur toggle shuffle', error);
-            this.showNotification('Erreur lors du changement du mode aléatoire', 'error');
-            // Rétablir l'état en cas d'erreur
-            this.isShuffleActive = !this.isShuffleActive;
+            logger.error('SpotifyPlayer: Erreur true shuffle', error);
+            this.showNotification('Erreur lors de l\'activation du true shuffle', 'error');
+            
+            // Nettoyer l'interface en cas d'erreur
+            const shuffleBtn = document.getElementById('true-shuffle-btn');
+            if (shuffleBtn) {
+                shuffleBtn.classList.remove('loading', 'active', 'true-shuffle-active');
+            }
+        }
+    }
+    
+    // Désactiver le true shuffle et revenir à l'ordre original
+    async disableTrueShuffle() {
+        logger.info('SpotifyPlayer: Disabling true shuffle');
+        
+        try {
+            // Si on a des pistes originales, les rejouer dans l'ordre
+            if (this.trueShuffle.originalTracks.length > 0 && this.trueShuffle.currentContext) {
+                // Rejouer le contexte original
+                await this.webApiService.playContext(
+                    this.trueShuffle.currentContext.contextUri, 
+                    this.deviceId
+                );
+            }
+            
+            // Réinitialiser l'état du true shuffle
+            this.trueShuffle = {
+                isActive: false,
+                originalTracks: [],
+                shuffledTracks: [],
+                currentContext: null,
+                playbackStarted: false
+            };
+            
+            // Mettre à jour l'interface
+            const shuffleBtn = document.getElementById('true-shuffle-btn');
+            if (shuffleBtn) {
+                shuffleBtn.classList.remove('active', 'true-shuffle-active');
+            }
+            
+            this.showNotification('True Shuffle désactivé - Ordre original restauré', 'info');
+            
+            // Rafraîchir l'état
+            setTimeout(() => this.refreshState(), 1000);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur désactivation true shuffle', error);
+            this.showNotification('Erreur lors de la désactivation du true shuffle', 'error');
         }
     }
     
