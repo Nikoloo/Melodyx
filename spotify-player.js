@@ -1585,22 +1585,22 @@ class SpotifyPlayer {
         const description = playlist.description || `${trackCount} titres`;
         
         return `
-            <div class="playlist-item" data-id="${playlist.id}" data-uri="${playlist.uri}">
-                <div class="playlist-artwork">
-                    ${imageUrl ? `<img src="${imageUrl}" alt="${playlist.name}">` : '📝'}
+            <div class="playlist-row" data-id="${playlist.id}" data-uri="${playlist.uri}">
+                <div class="playlist-thumbnail">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${playlist.name}">` : '<div class="placeholder-image">📝</div>'}
                 </div>
-                <div class="playlist-info">
+                <div class="playlist-details">
                     <div class="playlist-name">${playlist.name}</div>
-                    <div class="playlist-description">${description}</div>
-                    <div class="playlist-track-count">${trackCount} titres</div>
+                    <div class="playlist-meta">${description}</div>
                 </div>
+                <div class="track-count">${trackCount} titres</div>
             </div>
         `;
     }
     
     // Attacher les événements aux playlists
     attachPlaylistEvents() {
-        const playlistItems = document.querySelectorAll('.playlist-item');
+        const playlistItems = document.querySelectorAll('.playlist-row');
         
         playlistItems.forEach(item => {
             item.addEventListener('click', () => {
