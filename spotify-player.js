@@ -1300,6 +1300,16 @@ class SpotifyPlayer {
             
             // Charger la queue
             await this.loadCurrentQueue();
+            
+            // Rafraîchir la queue toutes les 5 secondes tant que la modale est ouverte
+            this.queueRefreshInterval = setInterval(async () => {
+                if (modal.style.display === 'flex' && modal.classList.contains('show')) {
+                    await this.loadCurrentQueue();
+                } else {
+                    clearInterval(this.queueRefreshInterval);
+                    this.queueRefreshInterval = null;
+                }
+            }, 5000);
         }
     }
     
@@ -1314,6 +1324,12 @@ class SpotifyPlayer {
             setTimeout(() => {
                 modal.style.display = 'none';
             }, 300);
+        }
+        
+        // Arrêter le rafraîchissement automatique
+        if (this.queueRefreshInterval) {
+            clearInterval(this.queueRefreshInterval);
+            this.queueRefreshInterval = null;
         }
     }
     
@@ -1853,14 +1869,60 @@ class SpotifyPlayer {
         logger.info('SpotifyPlayer: Play track from queue', { trackUri, position });
         
         try {
-            // Obtenir la queue actuelle
+            // Obtenir l'état de lecture actuel pour le contexte
+            const playbackState = await this.webApiService.getPlaybackState();
+            
+            // Si on a un contexte (playlist, album), on peut utiliser l'API pour jouer à partir de ce contexte
+            if (playbackState && playbackState.context && playbackState.context.uri) {
+                const contextUri = playbackState.context.uri;
+                
+                // Pour les playlists et albums, on peut essayer de trouver l'URI de la piste dans le contexte
+                try {
+                    // Obtenir les pistes du contexte pour calculer l'offset correct
+                    let contextTracks = [];
+                    
+                    if (contextUri.includes('playlist:')) {
+                        const playlistId = contextUri.split(':')[2];
+                        const playlistTracks = await this.webApiService.getPlaylistTracks(playlistId);
+                        contextTracks = playlistTracks.items.map(item => item.track);
+                    } else if (contextUri.includes('album:')) {
+                        const albumId = contextUri.split(':')[2];
+                        const albumTracks = await this.webApiService.getAlbumTracks(albumId);
+                        contextTracks = albumTracks.items;
+                    }
+                    
+                    // Trouver l'index de la piste dans le contexte
+                    const trackIndex = contextTracks.findIndex(track => track.uri === trackUri);
+                    
+                    if (trackIndex >= 0) {
+                        logger.info('SpotifyPlayer: Playing from context with offset', { 
+                            contextUri, 
+                            trackIndex,
+                            trackUri 
+                        });
+                        
+                        // Jouer à partir du contexte avec l'offset
+                        await this.webApiService.playContext(contextUri, this.deviceId, trackIndex);
+                        
+                        // Fermer la modale
+                        this.closeQueueModal();
+                        
+                        // Rafraîchir l'état après un court délai
+                        setTimeout(() => this.refreshState(), 1000);
+                        return;
+                    }
+                } catch (contextError) {
+                    logger.warn('SpotifyPlayer: Fallback to queue method', contextError);
+                }
+            }
+            
+            // Fallback : utiliser la queue directement
             const queueData = await this.webApiService.getQueue();
             if (!queueData || !queueData.queue) {
                 throw new Error('Impossible d\'obtenir la queue');
             }
             
-            // La position 0 signifie la première piste après la piste en cours
-            // On récupère les pistes à partir de cette position
+            // Vérifier que la piste existe à la position donnée
             const selectedTrack = queueData.queue[position];
             
             if (!selectedTrack || selectedTrack.uri !== trackUri) {
@@ -1870,8 +1932,7 @@ class SpotifyPlayer {
                 });
             }
             
-            // Construire la liste des pistes à jouer
-            // On commence par la piste sélectionnée et on inclut toutes les suivantes
+            // Construire la liste des pistes à jouer depuis la position sélectionnée
             const tracksToPlay = [];
             for (let i = position; i < queueData.queue.length; i++) {
                 if (queueData.queue[i]) {
@@ -1883,7 +1944,7 @@ class SpotifyPlayer {
                 throw new Error('Aucune piste disponible à cette position');
             }
             
-            logger.info('SpotifyPlayer: Playing tracks from queue', { 
+            logger.info('SpotifyPlayer: Playing tracks from queue fallback', { 
                 tracksCount: tracksToPlay.length,
                 firstTrack: tracksToPlay[0]
             });
