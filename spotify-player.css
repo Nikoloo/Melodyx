@@ -928,8 +928,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(4px);
     z-index: 1000;
     display: flex;
     align-items: center;
@@ -944,9 +944,10 @@
 }
 
 .modal-content {
-    background: var(--background-card);
+    background: rgba(18, 18, 18, 0.85);
+    backdrop-filter: blur(20px);
     border-radius: var(--border-radius);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     width: 100%;
     max-width: 600px;
     max-height: 80vh;
@@ -1320,6 +1321,18 @@
     background: linear-gradient(90deg, rgba(29, 185, 84, 0.08), var(--background-darker));
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
+    cursor: default;
+    opacity: 0.7;
+}
+
+.queue-item.clickable {
+    cursor: pointer;
+}
+
+.queue-item.clickable:hover {
+    background: rgba(29, 185, 84, 0.1);
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
 }
 
 .queue-thumbnail {

@@ -1788,6 +1788,18 @@ class SpotifyPlayer {
         });
         
         queueList.innerHTML = queueHTML;
+        
+        // Ajouter les event listeners pour les pistes cliquables
+        const clickableItems = queueList.querySelectorAll('.queue-item.clickable');
+        clickableItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const trackUri = item.getAttribute('data-uri');
+                const position = parseInt(item.getAttribute('data-position'));
+                if (trackUri && !isNaN(position)) {
+                    this.playTrackFromQueue(trackUri, position);
+                }
+            });
+        });
     }
     
     // Créer le HTML pour un item de queue
@@ -1795,9 +1807,11 @@ class SpotifyPlayer {
         const imageUrl = track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || '';
         const trackName = track.name;
         const artistName = track.artists?.map(a => a.name).join(', ') || 'Artiste inconnu';
+        const clickableClass = !isCurrent ? 'clickable' : '';
+        const dataPosition = !isCurrent ? `data-position="${position - 1}"` : '';
         
         return `
-            <div class="queue-item ${isCurrent ? 'current' : ''}" data-uri="${track.uri}">
+            <div class="queue-item ${isCurrent ? 'current' : ''} ${clickableClass}" data-uri="${track.uri}" ${dataPosition}>
                 <div class="queue-thumbnail">
                     ${imageUrl ? `<img src="${imageUrl}" alt="${trackName}">` : '🎵'}
                 </div>
@@ -1820,6 +1834,42 @@ class SpotifyPlayer {
                     <p>${message}</p>
                 </div>
             `;
+        }
+    }
+    
+    // Jouer une piste depuis la queue
+    async playTrackFromQueue(trackUri, position) {
+        logger.info('SpotifyPlayer: Play track from queue', { trackUri, position });
+        
+        try {
+            // Obtenir la queue actuelle
+            const queueData = await this.webApiService.getQueue();
+            if (!queueData || !queueData.queue) {
+                throw new Error('Impossible d\'obtenir la queue');
+            }
+            
+            // Construire la liste des URIs à partir de la position sélectionnée
+            const tracksToPlay = [trackUri];
+            
+            // Ajouter les pistes qui viennent après dans la queue
+            for (let i = position; i < queueData.queue.length; i++) {
+                if (queueData.queue[i]) {
+                    tracksToPlay.push(queueData.queue[i].uri);
+                }
+            }
+            
+            // Jouer les pistes en commençant par celle sélectionnée
+            await this.webApiService.playTracks(tracksToPlay, this.deviceId);
+            
+            // Fermer la modale
+            this.closeQueueModal();
+            
+            // Rafraîchir l'état après un court délai
+            setTimeout(() => this.refreshState(), 1000);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur lecture piste queue', error);
+            this.showNotification('Impossible de lire cette piste', 'error');
         }
     }
     
