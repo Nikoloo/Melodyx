@@ -1854,7 +1854,7 @@ class SpotifyPlayer {
         
         try {
             // Obtenir l'état actuel du lecteur pour récupérer le contexte
-            const currentState = await this.webApiService.getCurrentPlaybackState();
+            const currentState = await this.webApiService.getPlaybackState();
             
             if (currentState && currentState.context && currentState.context.uri) {
                 // Si on a un contexte (playlist, album, etc.), on peut utiliser l'offset
