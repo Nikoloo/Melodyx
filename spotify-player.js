@@ -1853,49 +1853,43 @@ class SpotifyPlayer {
         logger.info('SpotifyPlayer: Play track from queue', { trackUri, position });
         
         try {
-            // Obtenir l'état actuel du lecteur pour récupérer le contexte
-            const currentState = await this.webApiService.getPlaybackState();
-            
-            if (currentState && currentState.context && currentState.context.uri) {
-                // Si on a un contexte (playlist, album, etc.), on peut utiliser l'offset
-                const contextUri = currentState.context.uri;
-                
-                // Calculer l'offset réel dans le contexte
-                // La position dans la queue commence à 0 pour la piste en cours
-                // Donc position 1 = première piste après la piste en cours
-                const currentTrackIndex = currentState.item ? 
-                    (currentState.item.track_number - 1 || 0) : 0;
-                const targetOffset = currentTrackIndex + position;
-                
-                logger.info('SpotifyPlayer: Playing from context with offset', { 
-                    contextUri, 
-                    targetOffset,
-                    currentTrackIndex 
-                });
-                
-                // Jouer à partir du contexte avec l'offset
-                await this.webApiService.playContext(contextUri, this.deviceId, targetOffset);
-            } else {
-                // Fallback : obtenir la queue et jouer les pistes manuellement
-                const queueData = await this.webApiService.getQueue();
-                if (!queueData || !queueData.queue) {
-                    throw new Error('Impossible d\'obtenir la queue');
-                }
-                
-                // Si on est proche de la fin de la queue (position >= 15), 
-                // on ne peut jouer que les pistes disponibles
-                const availableTracks = queueData.queue.slice(position - 1);
-                
-                if (availableTracks.length === 0) {
-                    throw new Error('Aucune piste disponible à cette position');
-                }
-                
-                // Construire la liste des URIs disponibles
-                const tracksToPlay = availableTracks.map(track => track.uri);
-                
-                // Jouer les pistes disponibles
-                await this.webApiService.playTracks(tracksToPlay, this.deviceId);
+            // Obtenir la queue actuelle
+            const queueData = await this.webApiService.getQueue();
+            if (!queueData || !queueData.queue) {
+                throw new Error('Impossible d\'obtenir la queue');
             }
+            
+            // La position 0 signifie la première piste après la piste en cours
+            // On récupère les pistes à partir de cette position
+            const selectedTrack = queueData.queue[position];
+            
+            if (!selectedTrack || selectedTrack.uri !== trackUri) {
+                logger.warn('SpotifyPlayer: Track mismatch or not found', { 
+                    expected: trackUri, 
+                    found: selectedTrack?.uri 
+                });
+            }
+            
+            // Construire la liste des pistes à jouer
+            // On commence par la piste sélectionnée et on inclut toutes les suivantes
+            const tracksToPlay = [];
+            for (let i = position; i < queueData.queue.length; i++) {
+                if (queueData.queue[i]) {
+                    tracksToPlay.push(queueData.queue[i].uri);
+                }
+            }
+            
+            if (tracksToPlay.length === 0) {
+                throw new Error('Aucune piste disponible à cette position');
+            }
+            
+            logger.info('SpotifyPlayer: Playing tracks from queue', { 
+                tracksCount: tracksToPlay.length,
+                firstTrack: tracksToPlay[0]
+            });
+            
+            // Jouer les pistes en commençant par celle sélectionnée
+            await this.webApiService.playTracks(tracksToPlay, this.deviceId);
             
             // Fermer la modale
             this.closeQueueModal();
