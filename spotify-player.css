@@ -1413,6 +1413,35 @@
     flex-shrink: 0;
 }
 
+/* Queue more info indicator */
+.queue-more-info {
+    text-align: center;
+    padding: 2rem 1rem;
+    margin-top: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.queue-more-icon {
+    font-size: 2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5rem;
+}
+
+.queue-more-info p {
+    color: var(--text-secondary);
+    margin: 0 0 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.queue-more-info small {
+    color: var(--text-secondary);
+    opacity: 0.7;
+    font-size: 0.75rem;
+}
+
 .playlist-results {
     flex: 1;
     overflow-y: auto;

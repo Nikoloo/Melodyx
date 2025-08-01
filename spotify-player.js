@@ -1787,6 +1787,17 @@ class SpotifyPlayer {
             queueHTML += this.createQueueItemHTML(track, index + 1, false);
         });
         
+        // Si on a exactement 20 pistes dans la queue, il y a probablement plus de pistes
+        if (queueTracks.length === 20) {
+            queueHTML += `
+                <div class="queue-more-info">
+                    <div class="queue-more-icon">•••</div>
+                    <p>La file d'attente continue...</p>
+                    <small>Spotify limite l'affichage à 20 pistes</small>
+                </div>
+            `;
+        }
+        
         queueList.innerHTML = queueHTML;
         
         // Ajouter les event listeners pour les pistes cliquables
@@ -1842,24 +1853,49 @@ class SpotifyPlayer {
         logger.info('SpotifyPlayer: Play track from queue', { trackUri, position });
         
         try {
-            // Obtenir la queue actuelle
-            const queueData = await this.webApiService.getQueue();
-            if (!queueData || !queueData.queue) {
-                throw new Error('Impossible d\'obtenir la queue');
-            }
+            // Obtenir l'état actuel du lecteur pour récupérer le contexte
+            const currentState = await this.webApiService.getCurrentPlaybackState();
             
-            // Construire la liste des URIs à partir de la position sélectionnée
-            const tracksToPlay = [trackUri];
-            
-            // Ajouter les pistes qui viennent après dans la queue (position + 1 pour éviter la duplication)
-            for (let i = position + 1; i < queueData.queue.length; i++) {
-                if (queueData.queue[i]) {
-                    tracksToPlay.push(queueData.queue[i].uri);
+            if (currentState && currentState.context && currentState.context.uri) {
+                // Si on a un contexte (playlist, album, etc.), on peut utiliser l'offset
+                const contextUri = currentState.context.uri;
+                
+                // Calculer l'offset réel dans le contexte
+                // La position dans la queue commence à 0 pour la piste en cours
+                // Donc position 1 = première piste après la piste en cours
+                const currentTrackIndex = currentState.item ? 
+                    (currentState.item.track_number - 1 || 0) : 0;
+                const targetOffset = currentTrackIndex + position;
+                
+                logger.info('SpotifyPlayer: Playing from context with offset', { 
+                    contextUri, 
+                    targetOffset,
+                    currentTrackIndex 
+                });
+                
+                // Jouer à partir du contexte avec l'offset
+                await this.webApiService.playContext(contextUri, this.deviceId, targetOffset);
+            } else {
+                // Fallback : obtenir la queue et jouer les pistes manuellement
+                const queueData = await this.webApiService.getQueue();
+                if (!queueData || !queueData.queue) {
+                    throw new Error('Impossible d\'obtenir la queue');
                 }
+                
+                // Si on est proche de la fin de la queue (position >= 15), 
+                // on ne peut jouer que les pistes disponibles
+                const availableTracks = queueData.queue.slice(position - 1);
+                
+                if (availableTracks.length === 0) {
+                    throw new Error('Aucune piste disponible à cette position');
+                }
+                
+                // Construire la liste des URIs disponibles
+                const tracksToPlay = availableTracks.map(track => track.uri);
+                
+                // Jouer les pistes disponibles
+                await this.webApiService.playTracks(tracksToPlay, this.deviceId);
             }
-            
-            // Jouer les pistes en commençant par celle sélectionnée
-            await this.webApiService.playTracks(tracksToPlay, this.deviceId);
             
             // Fermer la modale
             this.closeQueueModal();
