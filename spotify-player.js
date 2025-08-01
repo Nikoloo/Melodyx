@@ -1851,8 +1851,8 @@ class SpotifyPlayer {
             // Construire la liste des URIs à partir de la position sélectionnée
             const tracksToPlay = [trackUri];
             
-            // Ajouter les pistes qui viennent après dans la queue
-            for (let i = position; i < queueData.queue.length; i++) {
+            // Ajouter les pistes qui viennent après dans la queue (position + 1 pour éviter la duplication)
+            for (let i = position + 1; i < queueData.queue.length; i++) {
                 if (queueData.queue[i]) {
                     tracksToPlay.push(queueData.queue[i].uri);
                 }

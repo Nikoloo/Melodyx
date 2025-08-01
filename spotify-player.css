@@ -928,8 +928,9 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.15);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     z-index: 1000;
     display: flex;
     align-items: center;
@@ -944,10 +945,12 @@
 }
 
 .modal-content {
-    background: rgba(18, 18, 18, 0.85);
-    backdrop-filter: blur(20px);
-    border-radius: var(--border-radius);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(28, 28, 28, 0.7);
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.5);
     width: 100%;
     max-width: 600px;
     max-height: 80vh;
@@ -966,7 +969,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .modal-header h3 {
@@ -1277,6 +1280,25 @@
     padding: 0 1.5rem 1.5rem;
 }
 
+/* Custom scrollbar styles for queue modal */
+.queue-results::-webkit-scrollbar {
+    width: 8px;
+}
+
+.queue-results::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.queue-results::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.queue-results::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 .queue-loading {
     text-align: center;
     padding: 3rem 1rem;
@@ -1304,9 +1326,9 @@
     align-items: center;
     gap: 12px;
     padding: 8px 12px;
-    background: var(--background-darker);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -1318,11 +1340,11 @@
 }
 
 .queue-item.current {
-    background: linear-gradient(90deg, rgba(29, 185, 84, 0.08), var(--background-darker));
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
+    background: linear-gradient(90deg, rgba(29, 185, 84, 0.15), rgba(29, 185, 84, 0.05));
+    border-color: rgba(29, 185, 84, 0.3);
+    box-shadow: 0 0 0 1px rgba(29, 185, 84, 0.15);
     cursor: default;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .queue-item.clickable {
