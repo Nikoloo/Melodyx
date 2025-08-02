@@ -4,7 +4,9 @@
       "WebFetch(domain:developer.spotify.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git clone:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

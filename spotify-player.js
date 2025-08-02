@@ -1184,8 +1184,8 @@ class SpotifyPlayer {
             });
         }
         
-        // Filtres de recherche
-        const searchFilters = document.querySelectorAll('.search-filter');
+        // Filtres de recherche - support for both old and new selectors
+        const searchFilters = document.querySelectorAll('.search-filter, .premium-filter-tab');
         searchFilters.forEach(filter => {
             filter.addEventListener('click', () => {
                 this.changeSearchFilter(filter.dataset.type);
@@ -1234,8 +1234,16 @@ class SpotifyPlayer {
             if (searchInput) {
                 setTimeout(() => {
                     searchInput.focus();
+                    // Clear previous search and show empty state
+                    searchInput.value = '';
+                    this.showSearchPlaceholder();
                 }, 300);
             }
+            
+            // Initialize filter indicator position
+            setTimeout(() => {
+                this.initializeFilterIndicator();
+            }, 400);
         }
     }
     
@@ -1333,7 +1341,7 @@ class SpotifyPlayer {
         }
     }
     
-    // Gérer la saisie de recherche avec debounce
+    // Gérer la saisie de recherche avec debounce et suggestions
     handleSearchInput(query) {
         const searchClearBtn = document.getElementById('search-clear-btn');
         
@@ -1342,14 +1350,99 @@ class SpotifyPlayer {
             searchClearBtn.style.display = query.length > 0 ? 'block' : 'none';
         }
         
-        // Debounce de la recherche
+        // Cancel current search if user is typing
+        this.webApiService.cancelCurrentSearch();
+        
+        // Clear existing timeout
         clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(() => {
-            this.performSearch(query);
-        }, 300);
+        
+        // Show suggestions for very short queries
+        if (query.length >= 1 && query.length < 3) {
+            this.showSearchSuggestions(query);
+            return;
+        }
+        
+        // Perform full search for longer queries
+        if (query.length >= 3) {
+            this.searchTimeout = setTimeout(() => {
+                this.performSearch(query);
+            }, 300);
+        } else {
+            this.showSearchPlaceholder();
+        }
+    }
+
+    // Afficher les suggestions de recherche
+    async showSearchSuggestions(query) {
+        try {
+            const suggestions = await this.webApiService.getSearchSuggestions(query, 5);
+            
+            if (suggestions.length === 0) {
+                this.showSearchPlaceholder();
+                return;
+            }
+            
+            const searchResultsList = document.getElementById('search-results-list');
+            if (!searchResultsList) return;
+            
+            const suggestionsHTML = suggestions.map(suggestion => `
+                <div class="search-suggestion" data-query="${suggestion.text}" data-type="${suggestion.type}">
+                    <div class="suggestion-icon">
+                        ${this.getSuggestionIcon(suggestion.type)}
+                    </div>
+                    <div class="suggestion-text">${suggestion.text}</div>
+                    <div class="suggestion-type">${suggestion.type}</div>
+                </div>
+            `).join('');
+            
+            searchResultsList.innerHTML = `
+                <div class="search-suggestions">
+                    <div class="suggestions-header">Suggestions</div>
+                    ${suggestionsHTML}
+                </div>
+            `;
+            
+            // Attach click events to suggestions
+            const suggestionElements = searchResultsList.querySelectorAll('.search-suggestion');
+            suggestionElements.forEach(element => {
+                element.addEventListener('click', () => {
+                    const query = element.dataset.query;
+                    const type = element.dataset.type;
+                    
+                    // Set the search input value
+                    const searchInput = document.getElementById('search-input');
+                    if (searchInput) {
+                        searchInput.value = query;
+                    }
+                    
+                    // Change filter if different type
+                    if (type !== this.currentSearchType) {
+                        this.changeSearchFilter(type);
+                    }
+                    
+                    // Perform search
+                    this.performSearch(query);
+                });
+            });
+            
+        } catch (error) {
+            logger.debug('SpotifyPlayer: Erreur suggestions recherche', error);
+            this.showSearchPlaceholder();
+        }
+    }
+
+    // Obtenir l'icône pour le type de suggestion
+    getSuggestionIcon(type) {
+        const icons = {
+            track: '🎵',
+            artist: '👤',
+            album: '💿',
+            playlist: '📝'
+        };
+        return icons[type] || '🔍';
     }
     
-    // Effectuer la recherche
+    // Effectuer la recherche avec la nouvelle API
     async performSearch(query) {
         logger.debug('SpotifyPlayer: Recherche', { query, type: this.currentSearchType });
         
@@ -1366,12 +1459,30 @@ class SpotifyPlayer {
         this.showSearchLoading(true);
         
         try {
-            const results = await this.webApiService.quickSearch(query, this.currentSearchType, 20);
+            // Use the enhanced debounced search
+            const results = await this.webApiService.debouncedSearch(
+                query, 
+                [this.currentSearchType], 
+                20, 
+                0, 
+                300 // 300ms debounce
+            );
+            
             this.searchResults = results;
+            
+            // Track search analytics
+            const resultCount = results[this.currentSearchType + 's']?.items?.length || 0;
+            this.webApiService.trackSearchAnalytics(query, this.currentSearchType, resultCount);
             
             this.displaySearchResults(results);
             
         } catch (error) {
+            // Don't show error for cancelled searches
+            if (error.name === 'AbortError') {
+                logger.debug('SpotifyPlayer: Search cancelled');
+                return;
+            }
+            
             logger.error('SpotifyPlayer: Erreur recherche', error);
             this.showSearchError('Erreur lors de la recherche');
         } finally {
@@ -1379,15 +1490,16 @@ class SpotifyPlayer {
         }
     }
     
-    // Afficher les résultats de recherche
+    // Afficher les résultats de recherche avec données formatées
     displaySearchResults(results) {
         const searchResultsList = document.getElementById('search-results-list');
         
         if (!searchResultsList) return;
         
-        const items = results[this.currentSearchType + 's']?.items || [];
+        // Use the formatted results from the API service
+        const formattedItems = this.webApiService.formatSearchResultsForUI(results, this.currentSearchType);
         
-        if (items.length === 0) {
+        if (formattedItems.length === 0) {
             searchResultsList.innerHTML = `
                 <div class="search-placeholder">
                     <p>Aucun résultat trouvé</p>
@@ -1396,17 +1508,31 @@ class SpotifyPlayer {
             return;
         }
         
-        const resultsHTML = items.map(item => {
-            return this.createSearchResultHTML(item, this.currentSearchType);
+        const resultsHTML = formattedItems.map(item => {
+            return this.createEnhancedSearchResultHTML(item);
         }).join('');
         
         searchResultsList.innerHTML = resultsHTML;
+        
+        // Check if we can load more results
+        const originalItems = results[this.currentSearchType + 's']?.items || [];
+        const hasMore = originalItems.length === 20; // If we got a full page, there might be more
+        
+        if (hasMore) {
+            searchResultsList.innerHTML += `
+                <div class="search-load-more">
+                    <button class="load-more-btn" onclick="window.spotifyPlayer.loadMoreSearchResults()">
+                        Charger plus de résultats
+                    </button>
+                </div>
+            `;
+        }
         
         // Attacher les événements
         this.attachSearchResultEvents();
     }
     
-    // Créer le HTML pour un résultat de recherche
+    // Créer le HTML pour un résultat de recherche (legacy method - kept for compatibility)
     createSearchResultHTML(item, type) {
         let imageUrl = '';
         let title = '';
@@ -1461,6 +1587,143 @@ class SpotifyPlayer {
             </div>
         `;
     }
+
+    // Créer le HTML amélioré pour un résultat de recherche
+    createEnhancedSearchResultHTML(item) {
+        const explicitBadge = item.explicit ? '<span class="explicit-badge">E</span>' : '';
+        const durationDisplay = item.duration ? `<span class="duration">${item.duration}</span>` : '';
+        const popularityBar = item.popularity ? `<div class="popularity-bar" style="width: ${item.popularity}%"></div>` : '';
+        
+        return `
+            <div class="search-result-item enhanced" 
+                 data-type="${item.type}" 
+                 data-id="${item.id}" 
+                 data-uri="${item.uri}"
+                 data-popularity="${item.popularity}">
+                <div class="search-result-artwork">
+                    ${item.image ? 
+                        `<img src="${item.image}" alt="${item.name}" loading="lazy">` : 
+                        '<div class="placeholder-artwork">🎵</div>'
+                    }
+                </div>
+                <div class="search-result-info">
+                    <div class="search-result-title">
+                        ${item.name}
+                        ${explicitBadge}
+                    </div>
+                    <div class="search-result-subtitle">${item.subtitle}</div>
+                    ${item.metadata.trackCount ? `<div class="track-count">${item.metadata.trackCount} tracks</div>` : ''}
+                    ${popularityBar ? `<div class="popularity-indicator">${popularityBar}</div>` : ''}
+                </div>
+                <div class="search-result-meta">
+                    ${durationDisplay}
+                    ${item.metadata.releaseDate ? `<span class="release-date">${new Date(item.metadata.releaseDate).getFullYear()}</span>` : ''}
+                </div>
+                <div class="search-result-actions">
+                    <button class="search-result-action play-action" title="Lire" ${!item.canPlay ? 'disabled' : ''}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                    </button>
+                    ${item.canQueue ? `
+                        <button class="search-result-action queue-action" title="Ajouter à la file">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                        </button>
+                    ` : ''}
+                    <button class="search-result-action details-action" title="Plus d'infos">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Get type label in French
+    getTypeLabel(type) {
+        const labels = {
+            track: 'Titre',
+            artist: 'Artiste',
+            album: 'Album',
+            playlist: 'Playlist'
+        };
+        return labels[type] || type;
+    }
+    
+    // Initialize filter indicator position
+    initializeFilterIndicator() {
+        const activeTab = document.querySelector('.premium-filter-tab.active');
+        const filterIndicator = document.querySelector('.filter-indicator');
+        
+        if (activeTab && filterIndicator) {
+            const tabRect = activeTab.getBoundingClientRect();
+            const containerRect = activeTab.parentElement.getBoundingClientRect();
+            const left = tabRect.left - containerRect.left;
+            const width = tabRect.width;
+            
+            filterIndicator.style.transform = `translateX(${left}px)`;
+            filterIndicator.style.width = `${width}px`;
+        }
+    }
+    
+    // Show search result options menu
+    showSearchResultOptions(cardElement) {
+        const type = cardElement.dataset.type;
+        const name = cardElement.dataset.name;
+        
+        // Simple action for now - can be enhanced with a proper context menu
+        this.playSearchResult(cardElement);
+    }
+    
+    // Enhanced search error display
+    showSearchError(message) {
+        const searchResultsList = document.getElementById('search-results-list');
+        const emptyState = document.querySelector('.search-empty-state');
+        const noResultsState = document.getElementById('search-no-results');
+        const loadingState = document.getElementById('search-loading');
+        
+        // Hide all other states
+        if (emptyState) emptyState.style.display = 'none';
+        if (loadingState) loadingState.style.display = 'none';
+        if (searchResultsList) searchResultsList.style.display = 'none';
+        
+        // Show error in no results state (reusing the UI)
+        if (noResultsState) {
+            noResultsState.querySelector('h4').textContent = 'Erreur de recherche';
+            noResultsState.querySelector('p').textContent = message;
+            noResultsState.style.display = 'flex';
+        }
+    }
+
+    // Charger plus de résultats de recherche (pagination)
+    async loadMoreSearchResults() {
+        const searchInput = document.getElementById('search-input');
+        if (!searchInput || !this.searchResults) return;
+        
+        const query = searchInput.value.trim();
+        if (!query) return;
+        
+        try {
+            const currentItems = this.webApiService.formatSearchResultsForUI(this.searchResults, this.currentSearchType);
+            const moreResults = await this.webApiService.searchMore(
+                query, 
+                this.currentSearchType, 
+                currentItems
+            );
+            
+            // Update search results with more items
+            this.searchResults[this.currentSearchType + 's'].items = moreResults.items;
+            
+            // Re-display all results
+            this.displaySearchResults(this.searchResults);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur chargement plus de résultats', error);
+        }
+    }
     
     // Attacher les événements aux résultats de recherche
     attachSearchResultEvents() {
@@ -1492,7 +1755,7 @@ class SpotifyPlayer {
         });
     }
     
-    // Jouer un résultat de recherche
+    // Jouer un résultat de recherche avec la nouvelle API
     async playSearchResult(itemElement) {
         const type = itemElement.dataset.type;
         const uri = itemElement.dataset.uri;
@@ -1500,21 +1763,17 @@ class SpotifyPlayer {
         
         logger.info('SpotifyPlayer: Lecture résultat recherche', { type, uri, id });
         
+        // Create item object for the new API method
+        const item = {
+            type,
+            uri,
+            id,
+            displayName: itemElement.querySelector('.search-result-title')?.textContent || 'Unknown'
+        };
+        
         try {
-            if (type === 'track') {
-                // Jouer la piste directement
-                await this.webApiService.playTracks([uri], this.deviceId);
-            } else if (type === 'album' || type === 'playlist') {
-                // Jouer le contexte (album ou playlist)
-                await this.webApiService.playContext(uri, this.deviceId);
-            } else if (type === 'artist') {
-                // Jouer les top tracks de l'artiste
-                const topTracks = await this.webApiService.getArtistTopTracks(id);
-                const trackUris = topTracks.tracks.map(track => track.uri).slice(0, 10);
-                if (trackUris.length > 0) {
-                    await this.webApiService.playTracks(trackUris, this.deviceId);
-                }
-            }
+            // Use the enhanced play method from the API service
+            await this.webApiService.playSearchResult(item, this.deviceId);
             
             // Fermer la modale et rafraîchir l'état
             this.closeSearchModal();
@@ -1522,31 +1781,47 @@ class SpotifyPlayer {
             
         } catch (error) {
             logger.error('SpotifyPlayer: Erreur lecture résultat', error);
+            this.showNotification(`Erreur: ${error.message}`, 'error');
         }
     }
     
-    // Ajouter à la file
+    // Ajouter à la file avec la nouvelle API
     async addToQueue(itemElement) {
         const uri = itemElement.dataset.uri;
+        const type = itemElement.dataset.type;
         
-        logger.info('SpotifyPlayer: Ajout à la file', { uri });
+        logger.info('SpotifyPlayer: Ajout à la file', { uri, type });
+        
+        // Create item object for the new API method
+        const item = {
+            type,
+            uri,
+            displayName: itemElement.querySelector('.search-result-title')?.textContent || 'Unknown'
+        };
         
         try {
-            await this.webApiService.addToQueue(uri);
+            // Use the enhanced add to queue method from the API service
+            await this.webApiService.addSearchResultToQueue(item);
             
-            // Feedback visuel
+            // Feedback visuel amélioré
             const btn = itemElement.querySelector('.queue-action');
             const originalHTML = btn.innerHTML;
             btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
             btn.style.background = '#1db954';
+            btn.style.color = 'white';
+            
+            // Show success notification
+            this.showNotification(`Ajouté à la file: ${item.displayName}`, 'success');
             
             setTimeout(() => {
                 btn.innerHTML = originalHTML;
                 btn.style.background = '';
+                btn.style.color = '';
             }, 2000);
             
         } catch (error) {
             logger.error('SpotifyPlayer: Erreur ajout file', error);
+            this.showNotification(`Erreur: ${error.message}`, 'error');
         }
     }
     

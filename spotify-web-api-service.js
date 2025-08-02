@@ -4,7 +4,22 @@
 class SpotifyWebAPIService {
     constructor() {
         this.baseURL = 'https://api.spotify.com/v1';
-        logger.info('SpotifyWebAPIService: Service initialisé');
+        
+        // Search functionality
+        this.searchCache = new Map();
+        this.searchCacheTimeout = 5 * 60 * 1000; // 5 minutes TTL
+        this.maxCacheSize = 100;
+        this.searchDebounceTimeout = null;
+        this.currentSearchController = null;
+        
+        // Rate limiting
+        this.requestQueue = [];
+        this.isProcessingQueue = false;
+        this.rateLimitRemaining = 1;
+        this.rateLimitReset = Date.now();
+        this.retryDelays = [1000, 2000, 4000, 8000]; // Exponential backoff
+        
+        logger.info('SpotifyWebAPIService: Service initialisé with enhanced search capabilities');
     }
 
     // Obtenir les headers d'authentification
@@ -20,44 +35,149 @@ class SpotifyWebAPIService {
         };
     }
 
-    // Effectuer une requête API
+    // Effectuer une requête API avec gestion avancée des erreurs et rate limiting
     async apiRequest(endpoint, options = {}) {
+        return this.apiRequestWithRetry(endpoint, options, 0);
+    }
+
+    // Requête API avec retry logic et rate limiting
+    async apiRequestWithRetry(endpoint, options = {}, retryCount = 0) {
         const url = `${this.baseURL}${endpoint}`;
-        const headers = await this.getAuthHeaders();
         
-        const config = {
-            headers,
-            ...options
-        };
-        
-        logger.debug('SpotifyWebAPIService: Requête API', { method: config.method || 'GET', endpoint });
-        
-        const response = await fetch(url, config);
-        
-        // 204 No Content est valide pour certaines opérations
-        if (response.status === 204) {
-            return null;
-        }
-        
-        if (!response.ok) {
-            const error = await response.text();
-            logger.error('SpotifyWebAPIService: Erreur API', { 
-                status: response.status, 
+        try {
+            // Check rate limiting
+            await this.checkRateLimit();
+            
+            const headers = await this.getAuthHeaders();
+            const config = {
+                headers,
+                ...options
+            };
+            
+            // Add AbortController for request cancellation
+            if (!config.signal && this.currentSearchController) {
+                config.signal = this.currentSearchController.signal;
+            }
+            
+            logger.debug('SpotifyWebAPIService: Requête API', { 
+                method: config.method || 'GET', 
                 endpoint,
-                error 
+                retryCount 
             });
-            throw new Error(`API Error ${response.status}: ${error}`);
+            
+            const response = await fetch(url, config);
+            
+            // Update rate limit info from headers
+            this.updateRateLimitInfo(response);
+            
+            // 204 No Content est valide pour certaines opérations
+            if (response.status === 204) {
+                return null;
+            }
+            
+            // Handle rate limiting (429 Too Many Requests)
+            if (response.status === 429) {
+                const retryAfter = parseInt(response.headers.get('Retry-After') || '1') * 1000;
+                logger.warn('SpotifyWebAPIService: Rate limited, retrying after', { retryAfter });
+                
+                if (retryCount < this.retryDelays.length) {
+                    await this.delay(retryAfter);
+                    return this.apiRequestWithRetry(endpoint, options, retryCount + 1);
+                }
+                throw new Error('Rate limit exceeded, max retries reached');
+            }
+            
+            // Handle server errors with exponential backoff
+            if (response.status >= 500 && retryCount < this.retryDelays.length) {
+                const delay = this.retryDelays[retryCount];
+                logger.warn('SpotifyWebAPIService: Server error, retrying', { 
+                    status: response.status, 
+                    delay,
+                    retryCount 
+                });
+                
+                await this.delay(delay);
+                return this.apiRequestWithRetry(endpoint, options, retryCount + 1);
+            }
+            
+            if (!response.ok) {
+                const error = await response.text();
+                logger.error('SpotifyWebAPIService: Erreur API', { 
+                    status: response.status, 
+                    endpoint,
+                    error,
+                    retryCount
+                });
+                throw new Error(`API Error ${response.status}: ${error}`);
+            }
+            
+            // Vérifier le content-type avant de parser en JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json();
+            } else {
+                // Si ce n'est pas du JSON, retourner le texte ou null pour les opérations qui n'ont pas de contenu
+                const text = await response.text();
+                return text || null;
+            }
+            
+        } catch (error) {
+            // Don't retry if request was aborted (search cancelled)
+            if (error.name === 'AbortError') {
+                logger.debug('SpotifyWebAPIService: Request aborted');
+                throw error;
+            }
+            
+            // Network errors - retry with exponential backoff
+            if (retryCount < this.retryDelays.length && this.isNetworkError(error)) {
+                const delay = this.retryDelays[retryCount];
+                logger.warn('SpotifyWebAPIService: Network error, retrying', { 
+                    error: error.message, 
+                    delay,
+                    retryCount 
+                });
+                
+                await this.delay(delay);
+                return this.apiRequestWithRetry(endpoint, options, retryCount + 1);
+            }
+            
+            throw error;
+        }
+    }
+
+    // Check if error is a network error that should be retried
+    isNetworkError(error) {
+        return error.name === 'TypeError' || 
+               error.message.includes('network') ||
+               error.message.includes('fetch');
+    }
+
+    // Update rate limit information from response headers
+    updateRateLimitInfo(response) {
+        const remaining = response.headers.get('X-RateLimit-Remaining');
+        const reset = response.headers.get('X-RateLimit-Reset');
+        
+        if (remaining !== null) {
+            this.rateLimitRemaining = parseInt(remaining);
         }
         
-        // Vérifier le content-type avant de parser en JSON
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return response.json();
-        } else {
-            // Si ce n'est pas du JSON, retourner le texte ou null pour les opérations qui n'ont pas de contenu
-            const text = await response.text();
-            return text || null;
+        if (reset !== null) {
+            this.rateLimitReset = parseInt(reset) * 1000; // Convert to milliseconds
         }
+    }
+
+    // Check and handle rate limiting
+    async checkRateLimit() {
+        if (this.rateLimitRemaining <= 1 && Date.now() < this.rateLimitReset) {
+            const waitTime = this.rateLimitReset - Date.now();
+            logger.info('SpotifyWebAPIService: Pre-emptive rate limit wait', { waitTime });
+            await this.delay(waitTime);
+        }
+    }
+
+    // Utility delay function
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     // === CONTRÔLES DE LECTURE ===
@@ -285,42 +405,238 @@ class SpotifyWebAPIService {
         });
     }
 
-    // === RECHERCHE ===
+    // === ENHANCED SEARCH FUNCTIONALITY ===
 
-    // Rechercher du contenu
-    async search(query, types = ['track'], limit = 20, offset = 0) {
-        logger.debug('SpotifyWebAPIService: Search', { query, types, limit });
-        
-        const typeParam = types.join(',');
-        const params = new URLSearchParams({
-            q: query,
-            type: typeParam,
-            limit: limit.toString(),
-            offset: offset.toString(),
-            market: 'FR'
-        });
-        
-        return this.apiRequest(`/search?${params}`);
+    // Search cache management
+    getCacheKey(query, types, limit, offset) {
+        return `${query.toLowerCase().trim()}_${types.join(',')}_${limit}_${offset}`;
     }
 
-    // Recherche rapide avec nettoyage des résultats
+    getCachedResult(cacheKey) {
+        const cached = this.searchCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.searchCacheTimeout) {
+            logger.debug('SpotifyWebAPIService: Cache hit', { cacheKey });
+            return cached.data;
+        }
+        
+        if (cached) {
+            this.searchCache.delete(cacheKey);
+        }
+        return null;
+    }
+
+    setCacheResult(cacheKey, data) {
+        // Manage cache size
+        if (this.searchCache.size >= this.maxCacheSize) {
+            const firstKey = this.searchCache.keys().next().value;
+            this.searchCache.delete(firstKey);
+        }
+
+        this.searchCache.set(cacheKey, {
+            data,
+            timestamp: Date.now()
+        });
+        
+        logger.debug('SpotifyWebAPIService: Result cached', { cacheKey });
+    }
+
+    // Clear search cache
+    clearSearchCache() {
+        this.searchCache.clear();
+        logger.info('SpotifyWebAPIService: Search cache cleared');
+    }
+
+    // Cancel current search
+    cancelCurrentSearch() {
+        if (this.currentSearchController) {
+            this.currentSearchController.abort();
+            this.currentSearchController = null;
+            logger.debug('SpotifyWebAPIService: Current search cancelled');
+        }
+    }
+
+    // Core search method with caching and error handling
+    async search(query, types = ['track'], limit = 20, offset = 0, market = 'US') {
+        const trimmedQuery = query.trim();
+        if (!trimmedQuery || trimmedQuery.length < 1) {
+            return this.getEmptySearchResult(types);
+        }
+
+        const cacheKey = this.getCacheKey(trimmedQuery, types, limit, offset);
+        
+        // Check cache first
+        const cachedResult = this.getCachedResult(cacheKey);
+        if (cachedResult) {
+            return cachedResult;
+        }
+
+        logger.debug('SpotifyWebAPIService: Search', { query: trimmedQuery, types, limit, offset });
+        
+        try {
+            // Cancel any existing search
+            this.cancelCurrentSearch();
+            
+            // Create new AbortController for this search
+            this.currentSearchController = new AbortController();
+            
+            const typeParam = types.join(',');
+            const params = new URLSearchParams({
+                q: trimmedQuery,
+                type: typeParam,
+                limit: limit.toString(),
+                offset: offset.toString(),
+                market
+            });
+            
+            const result = await this.apiRequest(`/search?${params}`, {
+                signal: this.currentSearchController.signal
+            });
+            
+            // Normalize and enhance the result
+            const normalizedResult = this.normalizeSearchResult(result, types);
+            
+            // Cache the result
+            this.setCacheResult(cacheKey, normalizedResult);
+            
+            this.currentSearchController = null;
+            return normalizedResult;
+            
+        } catch (error) {
+            this.currentSearchController = null;
+            
+            if (error.name === 'AbortError') {
+                logger.debug('SpotifyWebAPIService: Search cancelled');
+                throw error;
+            }
+            
+            logger.error('SpotifyWebAPIService: Search error', { query: trimmedQuery, error });
+            throw error;
+        }
+    }
+
+    // Normalize search results for consistent structure
+    normalizeSearchResult(result, types) {
+        const normalized = {};
+        
+        types.forEach(type => {
+            const key = type + 's';
+            if (result[key]) {
+                normalized[key] = {
+                    ...result[key],
+                    items: result[key].items.map(item => this.normalizeSearchItem(item, type))
+                };
+            } else {
+                normalized[key] = { items: [], total: 0, limit: 20, offset: 0 };
+            }
+        });
+        
+        return normalized;
+    }
+
+    // Normalize individual search items
+    normalizeSearchItem(item, type) {
+        const normalized = { ...item };
+        
+        // Add consistent image handling
+        if (item.images) {
+            normalized.image = this.getBestImage(item.images);
+        } else if (item.album?.images) {
+            normalized.image = this.getBestImage(item.album.images);
+        } else {
+            normalized.image = null;
+        }
+        
+        // Add type field
+        normalized.type = type;
+        
+        // Add display name for consistent rendering
+        switch (type) {
+            case 'track':
+                normalized.displayName = item.name;
+                normalized.displaySubtitle = item.artists?.map(a => a.name).join(', ') || '';
+                normalized.duration = item.duration_ms;
+                break;
+            case 'artist':
+                normalized.displayName = item.name;
+                normalized.displaySubtitle = `${item.followers?.total || 0} followers`;
+                break;
+            case 'album':
+                normalized.displayName = item.name;
+                normalized.displaySubtitle = item.artists?.map(a => a.name).join(', ') || '';
+                normalized.trackCount = item.total_tracks;
+                break;
+            case 'playlist':
+                normalized.displayName = item.name;
+                normalized.displaySubtitle = `${item.tracks?.total || 0} tracks`;
+                normalized.trackCount = item.tracks?.total;
+                break;
+        }
+        
+        return normalized;
+    }
+
+    // Get best image from image array
+    getBestImage(images) {
+        if (!images || images.length === 0) return null;
+        
+        // Prefer medium size (300px) or fallback to largest
+        const mediumImage = images.find(img => img.width >= 200 && img.width <= 400);
+        if (mediumImage) return mediumImage;
+        
+        // Fallback to first image
+        return images[0];
+    }
+
+    // Get empty search result structure
+    getEmptySearchResult(types) {
+        const result = {};
+        types.forEach(type => {
+            result[type + 's'] = { items: [], total: 0, limit: 20, offset: 0 };
+        });
+        return result;
+    }
+
+    // Debounced search with automatic cancellation
+    async debouncedSearch(query, types = ['track'], limit = 20, offset = 0, debounceMs = 300) {
+        return new Promise((resolve, reject) => {
+            // Clear existing debounce timeout
+            if (this.searchDebounceTimeout) {
+                clearTimeout(this.searchDebounceTimeout);
+            }
+            
+            this.searchDebounceTimeout = setTimeout(async () => {
+                try {
+                    const result = await this.search(query, types, limit, offset);
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            }, debounceMs);
+        });
+    }
+
+    // Quick search for immediate results (cached or fast)
     async quickSearch(query, type = 'track', limit = 10) {
         logger.debug('SpotifyWebAPIService: Quick search', { query, type, limit });
         
         if (!query || query.trim().length < 2) {
-            return { [type + 's']: { items: [] } };
+            return this.getEmptySearchResult([type]);
         }
         
         try {
             const results = await this.search(query.trim(), [type], limit);
             return results;
         } catch (error) {
+            if (error.name === 'AbortError') {
+                throw error;
+            }
+            
             logger.error('SpotifyWebAPIService: Quick search error', error);
-            return { [type + 's']: { items: [] } };
+            return this.getEmptySearchResult([type]);
         }
     }
 
-    // Recherche avec suggestions et auto-complétion
+    // Multi-type search with suggestions
     async searchWithSuggestions(query, limit = 15) {
         logger.debug('SpotifyWebAPIService: Search with suggestions', { query, limit });
         
@@ -334,7 +650,6 @@ class SpotifyWebAPIService {
         }
         
         try {
-            // Recherche multi-type
             const results = await this.search(query.trim(), ['track', 'artist', 'album', 'playlist'], limit);
             
             return {
@@ -344,6 +659,10 @@ class SpotifyWebAPIService {
                 playlists: results.playlists?.items || []
             };
         } catch (error) {
+            if (error.name === 'AbortError') {
+                throw error;
+            }
+            
             logger.error('SpotifyWebAPIService: Search with suggestions error', error);
             return {
                 tracks: [],
@@ -354,27 +673,259 @@ class SpotifyWebAPIService {
         }
     }
 
-    // Recherche populaire et tendances
+    // Paginated search for loading more results
+    async searchMore(query, type, currentResults, limit = 20) {
+        const offset = currentResults.length;
+        
+        try {
+            const results = await this.search(query, [type], limit, offset);
+            const newItems = results[type + 's']?.items || [];
+            
+            return {
+                items: [...currentResults, ...newItems],
+                hasMore: newItems.length === limit,
+                total: results[type + 's']?.total || 0
+            };
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Search more error', error);
+            return {
+                items: currentResults,
+                hasMore: false,
+                total: currentResults.length
+            };
+        }
+    }
+
+    // Advanced search with filters
+    async advancedSearch(options) {
+        const {
+            query,
+            type = 'track',
+            artist = '',
+            album = '',
+            year = '',
+            genre = '',
+            limit = 20,
+            offset = 0
+        } = options;
+
+        let searchQuery = query || '';
+        
+        // Build advanced query string
+        if (artist) searchQuery += ` artist:${artist}`;
+        if (album) searchQuery += ` album:${album}`;
+        if (year) searchQuery += ` year:${year}`;
+        if (genre) searchQuery += ` genre:${genre}`;
+        
+        if (!searchQuery.trim()) {
+            return this.getEmptySearchResult([type]);
+        }
+
+        return this.search(searchQuery.trim(), [type], limit, offset);
+    }
+
+    // Search suggestions based on user input
+    async getSearchSuggestions(query, maxSuggestions = 5) {
+        if (!query || query.length < 2) return [];
+        
+        try {
+            // Get a few results from each category for suggestions
+            const results = await this.search(query, ['track', 'artist', 'album'], 3, 0);
+            
+            const suggestions = [];
+            
+            // Add artist suggestions
+            if (results.artists?.items) {
+                results.artists.items.forEach(artist => {
+                    suggestions.push({
+                        text: artist.name,
+                        type: 'artist',
+                        id: artist.id
+                    });
+                });
+            }
+            
+            // Add album suggestions
+            if (results.albums?.items) {
+                results.albums.items.forEach(album => {
+                    suggestions.push({
+                        text: `${album.name} - ${album.artists?.[0]?.name || ''}`,
+                        type: 'album',
+                        id: album.id
+                    });
+                });
+            }
+            
+            // Add track suggestions
+            if (results.tracks?.items) {
+                results.tracks.items.forEach(track => {
+                    suggestions.push({
+                        text: `${track.name} - ${track.artists?.[0]?.name || ''}`,
+                        type: 'track',
+                        id: track.id
+                    });
+                });
+            }
+            
+            return suggestions.slice(0, maxSuggestions);
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Get search suggestions error', error);
+            return [];
+        }
+    }
+
+    // Get popular/trending content
     async getPopularContent(type = 'track', limit = 20) {
         logger.debug('SpotifyWebAPIService: Get popular content', { type, limit });
         
         try {
-            // Utiliser des termes de recherche populaires selon le type
             const popularQueries = {
-                track: ['pop', 'hits', 'top', 'trending'],
-                artist: ['popular', 'trending', 'top'],
-                album: ['new', 'popular', 'hits'],
-                playlist: ['top', 'hits', 'popular']
+                track: ['top hits 2024', 'viral songs', 'trending now', 'pop music'],
+                artist: ['trending artists', 'popular artists', 'top musicians'],
+                album: ['new releases', 'popular albums', 'trending albums'],
+                playlist: ['top playlists', 'viral playlists', 'trending playlists']
             };
             
-            const randomQuery = popularQueries[type][Math.floor(Math.random() * popularQueries[type].length)];
-            const results = await this.search(randomQuery, [type], limit);
+            const queries = popularQueries[type] || popularQueries.track;
+            const randomQuery = queries[Math.floor(Math.random() * queries.length)];
             
+            const results = await this.search(randomQuery, [type], limit);
             return results[type + 's']?.items || [];
+            
         } catch (error) {
             logger.error('SpotifyWebAPIService: Get popular content error', error);
             return [];
         }
+    }
+
+    // Play search result directly (integrates with existing player functionality)
+    async playSearchResult(item, deviceId = null) {
+        logger.info('SpotifyWebAPIService: Playing search result', { 
+            type: item.type, 
+            name: item.displayName,
+            uri: item.uri 
+        });
+
+        try {
+            switch (item.type) {
+                case 'track':
+                    return await this.playTracks([item.uri], deviceId);
+                    
+                case 'album':
+                case 'playlist':
+                    return await this.playContext(item.uri, deviceId);
+                    
+                case 'artist':
+                    // Get artist's top tracks and play them
+                    const topTracks = await this.getArtistTopTracks(item.id);
+                    const trackUris = topTracks.tracks.map(track => track.uri).slice(0, 10);
+                    if (trackUris.length > 0) {
+                        return await this.playTracks(trackUris, deviceId);
+                    }
+                    throw new Error('No tracks found for this artist');
+                    
+                default:
+                    throw new Error(`Cannot play item of type: ${item.type}`);
+            }
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error playing search result', error);
+            throw error;
+        }
+    }
+
+    // Add search result to queue (integrates with existing queue functionality)
+    async addSearchResultToQueue(item) {
+        logger.info('SpotifyWebAPIService: Adding search result to queue', { 
+            type: item.type, 
+            name: item.displayName,
+            uri: item.uri 
+        });
+
+        try {
+            if (item.type === 'track') {
+                return await this.addToQueue(item.uri);
+            } else {
+                throw new Error('Only tracks can be added to queue directly');
+            }
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error adding search result to queue', error);
+            throw error;
+        }
+    }
+
+    // Get detailed information about a search result
+    async getSearchResultDetails(item) {
+        try {
+            switch (item.type) {
+                case 'track':
+                    // Track details are usually complete in search results
+                    return item;
+                    
+                case 'artist':
+                    return await this.getArtist(item.id);
+                    
+                case 'album':
+                    return await this.getAlbum(item.id);
+                    
+                case 'playlist':
+                    return await this.getPlaylist(item.id);
+                    
+                default:
+                    return item;
+            }
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error getting search result details', error);
+            return item;
+        }
+    }
+
+    // Format search results for UI display
+    formatSearchResultsForUI(results, type) {
+        const items = results[type + 's']?.items || [];
+        
+        return items.map(item => ({
+            id: item.id,
+            uri: item.uri,
+            type: item.type,
+            name: item.displayName,
+            subtitle: item.displaySubtitle,
+            image: item.image?.url || null,
+            duration: item.duration ? this.formatDuration(item.duration) : null,
+            explicit: item.explicit || false,
+            popularity: item.popularity || 0,
+            // Add play/queue action availability
+            canPlay: true,
+            canQueue: item.type === 'track',
+            // Additional metadata for UI
+            metadata: {
+                trackCount: item.trackCount,
+                followers: item.followers?.total,
+                releaseDate: item.release_date
+            }
+        }));
+    }
+
+    // Format duration from milliseconds to MM:SS
+    formatDuration(durationMs) {
+        if (!durationMs) return null;
+        
+        const seconds = Math.floor(durationMs / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    // Search analytics and usage tracking
+    trackSearchAnalytics(query, type, resultCount) {
+        // This could be extended to send analytics to a service
+        logger.info('SpotifyWebAPIService: Search analytics', {
+            query: query.substring(0, 50), // Truncate for privacy
+            type,
+            resultCount,
+            timestamp: Date.now()
+        });
     }
 
     // === PLAYLISTS ===
