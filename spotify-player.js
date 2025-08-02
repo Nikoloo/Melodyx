@@ -1399,11 +1399,7 @@ class SpotifyPlayer {
     
     // Effectuer la recherche avec la nouvelle API
     async performSearch(query) {
-        logger.debug('SpotifyPlayer: Recherche', { query, type: this.currentSearchType });
-        
-        const searchResultsList = document.getElementById('search-results-list');
-        const searchLoading = document.getElementById('search-loading');
-        const searchPlaceholder = document.querySelector('.search-placeholder');
+        logger.info('SpotifyPlayer: Recherche', { query, type: this.currentSearchType });
         
         if (!query || query.trim().length < 2) {
             this.showSearchPlaceholder();
@@ -1414,20 +1410,28 @@ class SpotifyPlayer {
         this.showSearchLoading(true);
         
         try {
-            // Use the enhanced debounced search
-            const results = await this.webApiService.debouncedSearch(
-                query, 
+            // Use direct search instead of debounced for immediate results
+            const results = await this.webApiService.search(
+                query.trim(), 
                 [this.currentSearchType], 
                 20, 
-                0, 
-                300 // 300ms debounce
+                0
             );
+            
+            logger.info('SpotifyPlayer: Résultats reçus', { 
+                query, 
+                type: this.currentSearchType, 
+                count: results[this.currentSearchType + 's']?.items?.length || 0,
+                results 
+            });
             
             this.searchResults = results;
             
             // Track search analytics
             const resultCount = results[this.currentSearchType + 's']?.items?.length || 0;
-            this.webApiService.trackSearchAnalytics(query, this.currentSearchType, resultCount);
+            if (this.webApiService.trackSearchAnalytics) {
+                this.webApiService.trackSearchAnalytics(query, this.currentSearchType, resultCount);
+            }
             
             this.displaySearchResults(results);
             
@@ -1439,7 +1443,7 @@ class SpotifyPlayer {
             }
             
             logger.error('SpotifyPlayer: Erreur recherche', error);
-            this.showSearchError('Erreur lors de la recherche');
+            this.showSearchError('Erreur lors de la recherche: ' + error.message);
         } finally {
             this.showSearchLoading(false);
         }
@@ -1447,11 +1451,16 @@ class SpotifyPlayer {
     
     // Afficher les résultats de recherche avec données formatées
     displaySearchResults(results) {
+        logger.info('SpotifyPlayer: Affichage des résultats', { results });
+        
         const searchResultsList = document.getElementById('search-results-list');
         const emptyState = document.querySelector('.search-empty-state');
         const noResultsState = document.getElementById('search-no-results');
         
-        if (!searchResultsList) return;
+        if (!searchResultsList) {
+            logger.error('SpotifyPlayer: Element search-results-list introuvable');
+            return;
+        }
         
         // Hide all states first
         if (emptyState) emptyState.style.display = 'none';
@@ -1460,7 +1469,13 @@ class SpotifyPlayer {
         // Use the formatted results from the API service
         const formattedItems = this.webApiService.formatSearchResultsForUI(results, this.currentSearchType);
         
+        logger.info('SpotifyPlayer: Items formatés', { 
+            count: formattedItems.length, 
+            items: formattedItems 
+        });
+        
         if (formattedItems.length === 0) {
+            logger.info('SpotifyPlayer: Aucun résultat, affichage état vide');
             searchResultsList.innerHTML = '';
             searchResultsList.style.display = 'none';
             if (noResultsState) {
@@ -1473,10 +1488,21 @@ class SpotifyPlayer {
         searchResultsList.style.display = 'block';
         
         const resultsHTML = formattedItems.map((item, index) => {
-            return this.createEnhancedSearchResultHTML(item);
+            const html = this.createEnhancedSearchResultHTML(item);
+            logger.debug('SpotifyPlayer: HTML généré pour item', { item, html: html.substring(0, 100) });
+            return html;
         }).join('');
         
+        logger.info('SpotifyPlayer: Insertion HTML dans la liste', { 
+            htmlLength: resultsHTML.length,
+            preview: resultsHTML.substring(0, 200)
+        });
+        
         searchResultsList.innerHTML = resultsHTML;
+        
+        // Vérifier que le contenu a été inséré
+        const insertedCards = searchResultsList.querySelectorAll('.premium-result-card');
+        logger.info('SpotifyPlayer: Cartes insérées', { count: insertedCards.length });
         
         // Check if we can load more results
         const originalItems = results[this.currentSearchType + 's']?.items || [];
@@ -1567,51 +1593,93 @@ class SpotifyPlayer {
 
     // Créer le HTML amélioré pour un résultat de recherche
     createEnhancedSearchResultHTML(item) {
-        const explicitBadge = item.explicit ? '<span class="explicit-badge">E</span>' : '';
-        const durationDisplay = item.duration ? `<span class="duration">${item.duration}</span>` : '';
-        const popularityBar = item.popularity ? `<div class="popularity-bar" style="width: ${item.popularity}%"></div>` : '';
+        logger.debug('SpotifyPlayer: Création HTML pour item', { item });
+        
+        // Vérifier que l'item a les propriétés nécessaires
+        if (!item || !item.type || !item.uri || !item.name) {
+            logger.error('SpotifyPlayer: Item invalide pour création HTML', { item });
+            return '<div class="error-card">Erreur: données invalides</div>';
+        }
+        
+        // Badge for explicit content
+        const explicitBadge = item.metadata?.explicit ? 
+            '<span class="explicit-badge">E</span>' : '';
+        
+        // Popularity bar visualization
+        const popularityBar = item.metadata?.popularity !== undefined ? 
+            `<div class="popularity-bar"><div class="popularity-fill" style="width: ${item.metadata.popularity}%"></div></div>` : '';
+        
+        // Duration formatting
+        const durationDisplay = item.metadata?.duration ? 
+            `<span class="duration">${this.formatTime(item.metadata.duration / 1000)}</span>` : '';
+        
+        // Type badge with color
+        const typeBadge = `<span class="type-badge type-${item.type}">${this.getTypeLabel(item.type)}</span>`;
+        
+        // Animation delay for staggered entrance
+        const animationDelay = Math.random() * 0.2;
         
         return `
-            <div class="search-result-item enhanced" 
-                 data-type="${item.type}" 
-                 data-id="${item.id}" 
-                 data-uri="${item.uri}"
-                 data-popularity="${item.popularity}">
-                <div class="search-result-artwork">
-                    ${item.image ? 
-                        `<img src="${item.image}" alt="${item.name}" loading="lazy">` : 
-                        '<div class="placeholder-artwork">🎵</div>'
-                    }
-                </div>
-                <div class="search-result-info">
-                    <div class="search-result-title">
-                        ${item.name}
-                        ${explicitBadge}
-                    </div>
-                    <div class="search-result-subtitle">${item.subtitle}</div>
-                    ${item.metadata.trackCount ? `<div class="track-count">${item.metadata.trackCount} tracks</div>` : ''}
-                    ${popularityBar ? `<div class="popularity-indicator">${popularityBar}</div>` : ''}
-                </div>
-                <div class="search-result-meta">
-                    ${durationDisplay}
-                    ${item.metadata.releaseDate ? `<span class="release-date">${new Date(item.metadata.releaseDate).getFullYear()}</span>` : ''}
-                </div>
-                <div class="search-result-actions">
-                    <button class="search-result-action play-action" title="Lire" ${!item.canPlay ? 'disabled' : ''}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                    </button>
-                    ${item.canQueue ? `
-                        <button class="search-result-action queue-action" title="Ajouter à la file">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            <div class="premium-result-card" style="animation-delay: ${animationDelay}s" data-type="${item.type}" data-uri="${item.uri}" data-id="${item.id}" data-name="${item.displayName || item.name}">
+                <div class="premium-artwork">
+                    <img src="${item.image || ''}" alt="${item.displayName || item.name}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\' viewBox=\\'0 0 100 100\\'%3E%3Crect width=\\'100\\' height=\\'100\\' fill=\\'%23333\\'/%3E%3Cpath d=\\'M50 30c-11 0-20 9-20 20s9 20 20 20 20-9 20-20-9-20-20-20zm0 5c8.3 0 15 6.7 15 15s-6.7 15-15 15-15-6.7-15-15 6.7-15 15-15z\\' fill=\\'%23555\\'/%3E%3C/svg%3E'">
+                    <div class="artwork-overlay">
+                        <button class="premium-play-btn" title="Lire maintenant">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
                             </svg>
                         </button>
+                    </div>
+                    <div class="artwork-gradient"></div>
+                </div>
+                
+                <div class="premium-info">
+                    <div class="info-header">
+                        <h4 class="premium-title">
+                            ${item.displayName || item.name}
+                            ${explicitBadge}
+                        </h4>
+                        ${typeBadge}
+                    </div>
+                    
+                    <p class="premium-subtitle">${item.subtitle || ''}</p>
+                    
+                    <div class="premium-metadata">
+                        ${item.metadata?.trackCount ? `<span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg> ${item.metadata.trackCount} pistes</span>` : ''}
+                        ${durationDisplay ? `<span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg> ${durationDisplay}</span>` : ''}
+                        ${item.metadata?.releaseDate ? `<span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg> ${new Date(item.metadata.releaseDate).getFullYear()}</span>` : ''}
+                    </div>
+                    
+                    ${popularityBar ? `
+                        <div class="premium-popularity">
+                            <span class="popularity-label">Popularité</span>
+                            <div class="popularity-track">
+                                <div class="popularity-fill" style="width: ${item.metadata.popularity}%">
+                                    <div class="popularity-glow"></div>
+                                </div>
+                            </div>
+                            <span class="popularity-value">${item.metadata.popularity}%</span>
+                        </div>
                     ` : ''}
-                    <button class="search-result-action details-action" title="Plus d'infos">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </div>
+                
+                <div class="premium-actions">
+                    <button class="premium-action-btn primary" title="Lire" data-action="play">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <span>Lire</span>
+                    </button>
+                    
+                    <button class="premium-action-btn" title="Ajouter à la file" data-action="queue">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+                        </svg>
+                    </button>
+                    
+                    <button class="premium-action-btn" title="Plus d'options" data-action="more">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                         </svg>
                     </button>
                 </div>
