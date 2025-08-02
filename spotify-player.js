@@ -1350,97 +1350,52 @@ class SpotifyPlayer {
             searchClearBtn.style.display = query.length > 0 ? 'block' : 'none';
         }
         
-        // Cancel current search if user is typing
-        this.webApiService.cancelCurrentSearch();
-        
         // Clear existing timeout
         clearTimeout(this.searchTimeout);
         
-        // Show suggestions for very short queries
-        if (query.length >= 1 && query.length < 3) {
-            this.showSearchSuggestions(query);
+        // Si query vide, afficher le placeholder
+        if (query.length === 0) {
+            this.showSearchPlaceholder();
             return;
         }
         
-        // Perform full search for longer queries
-        if (query.length >= 3) {
-            this.searchTimeout = setTimeout(() => {
-                this.performSearch(query);
-            }, 300);
-        } else {
-            this.showSearchPlaceholder();
-        }
-    }
-
-    // Afficher les suggestions de recherche
-    async showSearchSuggestions(query) {
-        try {
-            const suggestions = await this.webApiService.getSearchSuggestions(query, 5);
-            
-            if (suggestions.length === 0) {
-                this.showSearchPlaceholder();
-                return;
-            }
-            
+        // Pour les requêtes courtes (1-2 caractères), pas de suggestions pour éviter trop d'appels API
+        if (query.length < 3) {
+            // Juste afficher un état de saisie
             const searchResultsList = document.getElementById('search-results-list');
-            if (!searchResultsList) return;
-            
-            const suggestionsHTML = suggestions.map(suggestion => `
-                <div class="search-suggestion" data-query="${suggestion.text}" data-type="${suggestion.type}">
-                    <div class="suggestion-icon">
-                        ${this.getSuggestionIcon(suggestion.type)}
+            if (searchResultsList) {
+                searchResultsList.innerHTML = `
+                    <div class="search-typing-state" style="display: flex; flex-direction: column; align-items: center; padding: 3rem; opacity: 0.6;">
+                        <p>Continuez à taper...</p>
+                        <small>Au moins 3 caractères requis</small>
                     </div>
-                    <div class="suggestion-text">${suggestion.text}</div>
-                    <div class="suggestion-type">${suggestion.type}</div>
-                </div>
-            `).join('');
-            
-            searchResultsList.innerHTML = `
-                <div class="search-suggestions">
-                    <div class="suggestions-header">Suggestions</div>
-                    ${suggestionsHTML}
-                </div>
-            `;
-            
-            // Attach click events to suggestions
-            const suggestionElements = searchResultsList.querySelectorAll('.search-suggestion');
-            suggestionElements.forEach(element => {
-                element.addEventListener('click', () => {
-                    const query = element.dataset.query;
-                    const type = element.dataset.type;
-                    
-                    // Set the search input value
-                    const searchInput = document.getElementById('search-input');
-                    if (searchInput) {
-                        searchInput.value = query;
-                    }
-                    
-                    // Change filter if different type
-                    if (type !== this.currentSearchType) {
-                        this.changeSearchFilter(type);
-                    }
-                    
-                    // Perform search
-                    this.performSearch(query);
-                });
-            });
-            
-        } catch (error) {
-            logger.debug('SpotifyPlayer: Erreur suggestions recherche', error);
-            this.showSearchPlaceholder();
+                `;
+                searchResultsList.style.display = 'block';
+            }
+            this.hideOtherSearchStates();
+            return;
         }
+        
+        // Cancel current search only for longer queries
+        this.webApiService.cancelCurrentSearch();
+        
+        // Perform full search for longer queries
+        this.searchTimeout = setTimeout(() => {
+            this.performSearch(query);
+        }, 300);
+    }
+    
+    // Helper pour masquer les autres états de recherche
+    hideOtherSearchStates() {
+        const emptyState = document.querySelector('.search-empty-state');
+        const noResultsState = document.getElementById('search-no-results');
+        const loadingState = document.getElementById('search-loading');
+        
+        if (emptyState) emptyState.style.display = 'none';
+        if (noResultsState) noResultsState.style.display = 'none';
+        if (loadingState) loadingState.style.display = 'none';
     }
 
-    // Obtenir l'icône pour le type de suggestion
-    getSuggestionIcon(type) {
-        const icons = {
-            track: '🎵',
-            artist: '👤',
-            album: '💿',
-            playlist: '📝'
-        };
-        return icons[type] || '🔍';
-    }
     
     // Effectuer la recherche avec la nouvelle API
     async performSearch(query) {
@@ -1493,22 +1448,31 @@ class SpotifyPlayer {
     // Afficher les résultats de recherche avec données formatées
     displaySearchResults(results) {
         const searchResultsList = document.getElementById('search-results-list');
+        const emptyState = document.querySelector('.search-empty-state');
+        const noResultsState = document.getElementById('search-no-results');
         
         if (!searchResultsList) return;
+        
+        // Hide all states first
+        if (emptyState) emptyState.style.display = 'none';
+        if (noResultsState) noResultsState.style.display = 'none';
         
         // Use the formatted results from the API service
         const formattedItems = this.webApiService.formatSearchResultsForUI(results, this.currentSearchType);
         
         if (formattedItems.length === 0) {
-            searchResultsList.innerHTML = `
-                <div class="search-placeholder">
-                    <p>Aucun résultat trouvé</p>
-                </div>
-            `;
+            searchResultsList.innerHTML = '';
+            searchResultsList.style.display = 'none';
+            if (noResultsState) {
+                noResultsState.style.display = 'flex';
+            }
             return;
         }
         
-        const resultsHTML = formattedItems.map(item => {
+        // Show results list
+        searchResultsList.style.display = 'block';
+        
+        const resultsHTML = formattedItems.map((item, index) => {
             return this.createEnhancedSearchResultHTML(item);
         }).join('');
         
@@ -1520,13 +1484,26 @@ class SpotifyPlayer {
         
         if (hasMore) {
             searchResultsList.innerHTML += `
-                <div class="search-load-more">
-                    <button class="load-more-btn" onclick="window.spotifyPlayer.loadMoreSearchResults()">
-                        Charger plus de résultats
+                <div class="premium-load-more">
+                    <button class="premium-load-btn" onclick="window.spotifyPlayer.loadMoreSearchResults()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                        <span>Charger plus de résultats</span>
                     </button>
                 </div>
             `;
         }
+        
+        // Trigger entrance animations
+        requestAnimationFrame(() => {
+            const cards = searchResultsList.querySelectorAll('.premium-result-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('visible');
+                }, index * 50);
+            });
+        });
         
         // Attacher les événements
         this.attachSearchResultEvents();
@@ -1727,13 +1704,47 @@ class SpotifyPlayer {
     
     // Attacher les événements aux résultats de recherche
     attachSearchResultEvents() {
-        const playActions = document.querySelectorAll('.search-result-action.play-action');
+        // Support legacy and premium selectors
+        const playActions = document.querySelectorAll('.search-result-action.play-action, .premium-play-btn');
         const queueActions = document.querySelectorAll('.search-result-action.queue-action');
         
+        // Premium play buttons in overlay
+        const overlayPlayBtns = document.querySelectorAll('.premium-play-btn');
+        overlayPlayBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = btn.closest('.premium-result-card, .search-result-item');
+                this.playSearchResult(card);
+            });
+        });
+        
+        // Action buttons
+        const actionBtns = document.querySelectorAll('.premium-action-btn');
+        actionBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const card = btn.closest('.premium-result-card, .search-result-item');
+                
+                switch(action) {
+                    case 'play':
+                        this.playSearchResult(card);
+                        break;
+                    case 'queue':
+                        this.addToQueue(card);
+                        break;
+                    case 'more':
+                        this.showSearchResultOptions(card);
+                        break;
+                }
+            });
+        });
+        
+        // Legacy action buttons
         playActions.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const item = btn.closest('.search-result-item');
+                const item = btn.closest('.search-result-item, .premium-result-card');
                 this.playSearchResult(item);
             });
         });
@@ -1741,17 +1752,32 @@ class SpotifyPlayer {
         queueActions.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const item = btn.closest('.search-result-item');
+                const item = btn.closest('.search-result-item, .premium-result-card');
                 this.addToQueue(item);
             });
         });
         
-        // Clic sur l'item entier pour jouer
-        const resultItems = document.querySelectorAll('.search-result-item');
-        resultItems.forEach(item => {
-            item.addEventListener('click', () => {
-                this.playSearchResult(item);
+        // Card click for quick play (both legacy and premium)
+        const resultCards = document.querySelectorAll('.premium-result-card, .search-result-item');
+        resultCards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                // Don't play if clicking on buttons
+                if (e.target.closest('.premium-actions, .search-result-actions, .artwork-overlay')) {
+                    return;
+                }
+                this.playSearchResult(card);
             });
+            
+            // Hover effects for premium cards
+            if (card.classList.contains('premium-result-card')) {
+                card.addEventListener('mouseenter', () => {
+                    card.classList.add('hover');
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.classList.remove('hover');
+                });
+            }
         });
     }
     
@@ -1763,12 +1789,13 @@ class SpotifyPlayer {
         
         logger.info('SpotifyPlayer: Lecture résultat recherche', { type, uri, id });
         
-        // Create item object for the new API method
+        // Create item object for the new API method - support both premium and legacy selectors
+        const titleElement = itemElement.querySelector('.premium-title, .search-result-title');
         const item = {
             type,
             uri,
             id,
-            displayName: itemElement.querySelector('.search-result-title')?.textContent || 'Unknown'
+            displayName: titleElement?.textContent?.trim() || itemElement.dataset.name || 'Unknown'
         };
         
         try {
@@ -1792,11 +1819,12 @@ class SpotifyPlayer {
         
         logger.info('SpotifyPlayer: Ajout à la file', { uri, type });
         
-        // Create item object for the new API method
+        // Create item object for the new API method - support both premium and legacy selectors
+        const titleElement = itemElement.querySelector('.premium-title, .search-result-title');
         const item = {
             type,
             uri,
-            displayName: itemElement.querySelector('.search-result-title')?.textContent || 'Unknown'
+            displayName: titleElement?.textContent?.trim() || itemElement.dataset.name || 'Unknown'
         };
         
         try {
