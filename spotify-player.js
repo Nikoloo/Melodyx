@@ -1087,14 +1087,6 @@ class SpotifyPlayer {
             });
         }
         
-        // Bouton de playlist
-        const playlistBtn = document.getElementById('playlist-btn');
-        if (playlistBtn) {
-            playlistBtn.addEventListener('click', () => {
-                this.openPlaylistModal();
-            });
-        }
-        
         // Bouton de queue
         const queueBtn = document.getElementById('queue-btn');
         if (queueBtn) {
@@ -1113,21 +1105,13 @@ class SpotifyPlayer {
         
         // Fermeture des modales
         const searchCloseBtn = document.getElementById('search-close-btn');
-        const playlistCloseBtn = document.getElementById('playlist-close-btn');
         const queueCloseBtn = document.getElementById('queue-close-btn');
         const searchModal = document.getElementById('search-modal');
-        const playlistModal = document.getElementById('playlist-modal');
         const queueModal = document.getElementById('queue-modal');
         
         if (searchCloseBtn) {
             searchCloseBtn.addEventListener('click', () => {
                 this.closeSearchModal();
-            });
-        }
-        
-        if (playlistCloseBtn) {
-            playlistCloseBtn.addEventListener('click', () => {
-                this.closePlaylistModal();
             });
         }
         
@@ -1142,14 +1126,6 @@ class SpotifyPlayer {
             searchModal.addEventListener('click', (e) => {
                 if (e.target === searchModal) {
                     this.closeSearchModal();
-                }
-            });
-        }
-        
-        if (playlistModal) {
-            playlistModal.addEventListener('click', (e) => {
-                if (e.target === playlistModal) {
-                    this.closePlaylistModal();
                 }
             });
         }
@@ -1211,7 +1187,7 @@ class SpotifyPlayer {
             // Échap pour fermer les modales
             if (e.key === 'Escape') {
                 this.closeSearchModal();
-                this.closePlaylistModal();
+                this.closeQueueModal();
             }
         });
     }
@@ -1261,37 +1237,6 @@ class SpotifyPlayer {
         }
     }
     
-    // Ouvrir la modale de playlist
-    async openPlaylistModal() {
-        logger.info('SpotifyPlayer: Ouverture modale playlist');
-        
-        const modal = document.getElementById('playlist-modal');
-        
-        if (modal) {
-            modal.style.display = 'flex';
-            // Animation d'entrée
-            setTimeout(() => {
-                modal.classList.add('show');
-            }, 10);
-            
-            // Charger les playlists
-            await this.loadUserPlaylists();
-        }
-    }
-    
-    // Fermer la modale de playlist
-    closePlaylistModal() {
-        logger.info('SpotifyPlayer: Fermeture modale playlist');
-        
-        const modal = document.getElementById('playlist-modal');
-        
-        if (modal) {
-            modal.classList.remove('show');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        }
-    }
     
     // Ouvrir la modale de queue
     async openQueueModal() {
@@ -1343,6 +1288,11 @@ class SpotifyPlayer {
     
     // Gérer la saisie de recherche avec debounce et suggestions
     handleSearchInput(query) {
+        // Ne pas gérer la recherche si on est sur les onglets spéciaux
+        if (this.currentSearchType === 'my-playlists' || this.currentSearchType === 'liked') {
+            return;
+        }
+        
         const searchClearBtn = document.getElementById('search-clear-btn');
         
         // Afficher/masquer le bouton de nettoyage
@@ -1929,15 +1879,31 @@ class SpotifyPlayer {
         this.currentSearchType = type;
         
         // Mettre à jour l'UI
-        const filters = document.querySelectorAll('.search-filter');
+        const filters = document.querySelectorAll('.search-filter, .premium-filter-tab');
         filters.forEach(filter => {
             filter.classList.toggle('active', filter.dataset.type === type);
         });
         
-        // Relancer la recherche si il y a du texte
+        // Gérer les onglets spéciaux
         const searchInput = document.getElementById('search-input');
-        if (searchInput && searchInput.value.trim().length >= 2) {
-            this.performSearch(searchInput.value);
+        const searchContainer = document.querySelector('.premium-search-container');
+        
+        if (type === 'my-playlists') {
+            if (searchContainer) searchContainer.style.display = 'none';
+            this.showUserPlaylists();
+        } else if (type === 'liked') {
+            if (searchContainer) searchContainer.style.display = 'none';
+            this.showLikedSongs();
+        } else {
+            // Afficher le champ de recherche pour les autres onglets
+            if (searchContainer) searchContainer.style.display = 'block';
+            
+            // Relancer la recherche si il y a du texte
+            if (searchInput && searchInput.value.trim().length >= 2) {
+                this.performSearch(searchInput.value);
+            } else {
+                this.showSearchPlaceholder();
+            }
         }
     }
     
@@ -1956,6 +1922,120 @@ class SpotifyPlayer {
         }
         
         this.showSearchPlaceholder();
+    }
+    
+    // Afficher les playlists de l'utilisateur dans la modale de recherche
+    async showUserPlaylists() {
+        logger.info('SpotifyPlayer: Affichage des playlists utilisateur');
+        
+        const resultsContainer = document.getElementById('search-results-container');
+        const searchLoading = document.getElementById('search-loading');
+        const searchResultsList = document.getElementById('search-results-list');
+        const resultsCount = document.getElementById('results-count');
+        
+        // Masquer l'état vide et afficher le chargement
+        document.querySelector('.search-empty-state').style.display = 'none';
+        searchLoading.style.display = 'flex';
+        resultsContainer.style.display = 'none';
+        
+        try {
+            const playlists = await this.webApiService.getAllUserPlaylists();
+            
+            searchLoading.style.display = 'none';
+            resultsContainer.style.display = 'block';
+            
+            if (resultsCount) {
+                resultsCount.textContent = `${playlists.length} playlist${playlists.length !== 1 ? 's' : ''}`;
+            }
+            
+            searchResultsList.innerHTML = '';
+            
+            playlists.forEach(playlist => {
+                const playlistElement = this.createPlaylistElement(playlist);
+                searchResultsList.appendChild(playlistElement);
+            });
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur chargement playlists', error);
+            searchLoading.style.display = 'none';
+            this.showSearchError('Erreur lors du chargement des playlists');
+        }
+    }
+    
+    // Afficher les titres likés
+    async showLikedSongs() {
+        logger.info('SpotifyPlayer: Affichage des titres likés');
+        
+        const resultsContainer = document.getElementById('search-results-container');
+        const searchLoading = document.getElementById('search-loading');
+        const searchResultsList = document.getElementById('search-results-list');
+        const resultsCount = document.getElementById('results-count');
+        
+        // Masquer l'état vide et afficher le chargement
+        document.querySelector('.search-empty-state').style.display = 'none';
+        searchLoading.style.display = 'flex';
+        resultsContainer.style.display = 'none';
+        
+        try {
+            const tracks = await this.webApiService.getLikedTracks();
+            
+            searchLoading.style.display = 'none';
+            resultsContainer.style.display = 'block';
+            
+            if (resultsCount) {
+                resultsCount.textContent = `${tracks.length} titre${tracks.length !== 1 ? 's' : ''} liké${tracks.length !== 1 ? 's' : ''}`;
+            }
+            
+            searchResultsList.innerHTML = '';
+            
+            tracks.forEach(track => {
+                const trackElement = this.createSearchResultElement(track, 'track');
+                searchResultsList.appendChild(trackElement);
+            });
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Erreur chargement titres likés', error);
+            searchLoading.style.display = 'none';
+            this.showSearchError('Erreur lors du chargement des titres likés');
+        }
+    }
+    
+    // Créer un élément de playlist pour les résultats de recherche
+    createPlaylistElement(playlist) {
+        const element = document.createElement('div');
+        element.className = 'premium-search-result-item';
+        element.dataset.uri = playlist.uri;
+        
+        const imageUrl = playlist.images?.[0]?.url || '';
+        const trackCount = playlist.tracks?.total || 0;
+        const isOwn = playlist.owner?.id === this.currentUserId;
+        
+        element.innerHTML = `
+            <div class="result-item-image">
+                ${imageUrl ? `<img src="${imageUrl}" alt="${playlist.name}">` : '<div class="placeholder-icon">📋</div>'}
+            </div>
+            <div class="result-item-info">
+                <div class="result-item-title">${playlist.name}</div>
+                <div class="result-item-subtitle">
+                    <span class="result-type-badge">Playlist</span>
+                    <span>${trackCount} titres</span>
+                    ${isOwn ? '<span class="owner-badge">Votre playlist</span>' : ''}
+                </div>
+            </div>
+            <button class="result-item-action" title="Lire la playlist">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </button>
+        `;
+        
+        // Ajouter l'événement de clic
+        element.addEventListener('click', () => {
+            this.playPlaylist(playlist.uri);
+            this.closeSearchModal();
+        });
+        
+        return element;
     }
     
     // Afficher le placeholder de recherche
@@ -2598,7 +2678,7 @@ class SpotifyPlayer {
             await this.webApiService.playContext(uri, this.deviceId);
             
             // Fermer la modale et rafraîchir l'état
-            this.closePlaylistModal();
+            this.closeSearchModal();
             setTimeout(() => this.refreshState(), 1000);
             
         } catch (error) {

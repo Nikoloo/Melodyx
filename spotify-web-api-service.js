@@ -1007,6 +1007,40 @@ class SpotifyWebAPIService {
         
         return this.apiRequest(`/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`);
     }
+    
+    // Obtenir les titres likés (saved tracks)
+    async getLikedTracks() {
+        logger.debug('SpotifyWebAPIService: Get liked tracks');
+        
+        try {
+            let allTracks = [];
+            let offset = 0;
+            const limit = 50;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const response = await this.apiRequest(`/me/tracks?limit=${limit}&offset=${offset}`);
+                const items = response.items || [];
+                
+                // Extraire les tracks des items
+                const tracks = items.map(item => item.track);
+                allTracks.push(...tracks);
+                
+                hasMore = items.length === limit && response.next;
+                offset += limit;
+                
+                // Sécurité: éviter les boucles infinies
+                if (offset > 1000) break;
+            }
+            
+            logger.info('SpotifyWebAPIService: Retrieved liked tracks', { count: allTracks.length });
+            return allTracks;
+            
+        } catch (error) {
+            logger.error('SpotifyWebAPIService: Error getting liked tracks', error);
+            return [];
+        }
+    }
 
     // === ALBUMS ===
 
