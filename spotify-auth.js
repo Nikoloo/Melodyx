@@ -1,8 +1,3 @@
-// Load configuration
-const script = document.createElement('script');
-script.src = 'config.js';
-document.head.appendChild(script);
-
 // Spotify OAuth Configuration
 const SpotifyAuth = {
     // Configuration OAuth Spotify
