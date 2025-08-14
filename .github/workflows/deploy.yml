@@ -42,7 +42,7 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
         run: |
           # Create a temporary config file with the injected client ID
-          cat > config-temp.js << 'EOF'
+          cat > src/js/auth/config-temp.js << 'EOF'
           const Config = {
               getSpotifyClientId() {
                   return '${{ secrets.SPOTIFY_CLIENT_ID }}' || '6b0945e253ec4d6d87b5729d1dd946df';
@@ -69,14 +69,14 @@ jobs:
                   const protocol = window.location.protocol;
                   const pathname = window.location.pathname;
                   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                      return 'https://melodyx-dev.netlify.app/callback';
+                      return 'https://melodyx-dev.netlify.app/src/pages/callback';
                   } else if (hostname.includes('.github.io')) {
                       const basePath = pathname.split('/').slice(0, -1).join('/');
-                      return `${protocol}//${hostname}${basePath}/callback`;
+                      return `${protocol}//${hostname}${basePath}/src/pages/callback`;
                   } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
-                      return `${protocol}//${hostname}/callback`;
+                      return `${protocol}//${hostname}/src/pages/callback`;
                   } else {
-                      return 'https://melodyx.app/callback';
+                      return 'https://melodyx.app/src/pages/callback';
                   }
               },
               validateConfig() {
@@ -97,7 +97,7 @@ jobs:
           EOF
           
           # Replace the config.js file
-          mv config-temp.js config.js
+          mv src/js/auth/config-temp.js src/js/auth/config.js
 
       # Skip minification for now - it may break the application
       # - name: Minify JavaScript files

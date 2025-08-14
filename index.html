@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Melodyx - Enrichissez votre expérience Spotify</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="src/css/base/main.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -38,7 +38,7 @@
                         vrai mode aléatoire, lyrics animés, visualisations musicales et bien plus encore.
                     </p>
                     <div class="hero-buttons">
-                        <button class="btn btn-primary">Commencer maintenant</button>
+                        <button class="btn btn-primary" onclick="window.location.href='src/pages/app.html'">Commencer maintenant</button>
                         <button class="btn btn-secondary">Voir la démo</button>
                     </div>
                 </div>
@@ -167,8 +167,8 @@
         </div>
     </footer>
 
-    <script src="config.js"></script>
-    <script src="spotify-auth.js"></script>
-    <script src="script.js"></script>
+    <script src="src/js/auth/config.js"></script>
+    <script src="src/js/auth/spotify-auth.js"></script>
+    <script src="src/js/ui/script.js"></script>
 </body>
 </html>
