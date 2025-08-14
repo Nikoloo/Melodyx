@@ -1,8 +1,13 @@
+// Load configuration
+const script = document.createElement('script');
+script.src = 'config.js';
+document.head.appendChild(script);
+
 // Spotify OAuth Configuration
 const SpotifyAuth = {
     // Configuration OAuth Spotify
     config: {
-        clientId: '6b0945e253ec4d6d87b5729d1dd946df', // À remplacer par votre Client ID
+        clientId: typeof Config !== 'undefined' ? Config.getSpotifyClientId() : '6b0945e253ec4d6d87b5729d1dd946df', // Using Config module
         scopes: [
             'user-read-private',
             'user-read-email',
@@ -25,6 +30,11 @@ const SpotifyAuth = {
 
     // Obtenir l'URI de redirection selon l'environnement
     getRedirectUri() {
+        // Use Config module if available, otherwise fallback to inline logic
+        if (typeof Config !== 'undefined') {
+            return Config.getRedirectUri();
+        }
+        
         const hostname = window.location.hostname;
         const protocol = window.location.protocol;
         const pathname = window.location.pathname;

@@ -1,0 +1,40 @@
+/*
+  # Security Headers for Melodyx
+  
+  # Prevent clickjacking attacks
+  X-Frame-Options: DENY
+  
+  # Prevent MIME type sniffing
+  X-Content-Type-Options: nosniff
+  
+  # Enable XSS protection
+  X-XSS-Protection: 1; mode=block
+  
+  # Control referrer information
+  Referrer-Policy: strict-origin-when-cross-origin
+  
+  # Content Security Policy
+  # Allow connections to Spotify APIs and CDNs
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.scdn.co https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.scdn.co https://*.spotifycdn.com; connect-src 'self' https://api.spotify.com https://accounts.spotify.com wss://dealer.spotify.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;
+  
+  # Permissions Policy (formerly Feature Policy)
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()
+  
+  # HSTS - Enforce HTTPS (commented out for GitHub Pages compatibility)
+  # Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+/*.html
+  # Cache HTML files for 1 hour
+  Cache-Control: public, max-age=3600
+  
+/*.js
+  # Cache JavaScript files for 1 week
+  Cache-Control: public, max-age=604800
+  
+/*.css
+  # Cache CSS files for 1 week
+  Cache-Control: public, max-age=604800
+  
+/assets/*
+  # Cache assets for 1 month
+  Cache-Control: public, max-age=2592000

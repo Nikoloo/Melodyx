@@ -6,8 +6,12 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(node:*)",
       "Bash(git clone:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(mkdir:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

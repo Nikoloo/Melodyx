@@ -1,0 +1,56 @@
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+*.min.js
+*.min.css
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.backup
+*.bak
+*-backup.js
+*-old.css
+
+# Spotify credentials (additional safety)
+spotify-credentials.json
+client-secret.json
+
+# Local configuration
+config.local.js
+
+# Cache files
+.cache/
+.parcel-cache/
