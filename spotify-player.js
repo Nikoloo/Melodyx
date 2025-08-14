@@ -1079,29 +1079,10 @@ class SpotifyPlayer {
     
     // Attacher les événements de recherche et playlist
     attachSearchAndPlaylistEvents() {
-        // Bouton de recherche
+        // Boutons désactivés - fonctionnalités supprimées
         const searchBtn = document.getElementById('search-btn');
-        if (searchBtn) {
-            searchBtn.addEventListener('click', () => {
-                this.openSearchModal();
-            });
-        }
-        
-        // Bouton de queue
         const queueBtn = document.getElementById('queue-btn');
-        if (queueBtn) {
-            queueBtn.addEventListener('click', () => {
-                this.openQueueModal();
-            });
-        }
-        
-        // Bouton de vrai mode aléatoire
         const trueShuffleBtn = document.getElementById('true-shuffle-btn');
-        if (trueShuffleBtn) {
-            trueShuffleBtn.addEventListener('click', () => {
-                this.shuffleCurrentQueue();
-            });
-        }
         
         // Fermeture des modales
         const searchCloseBtn = document.getElementById('search-close-btn');
@@ -1179,21 +1160,13 @@ class SpotifyPlayer {
         // Raccourcis clavier
         document.addEventListener('keydown', (e) => {
             // Ctrl+K ou Cmd+K pour ouvrir la recherche
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                this.openSearchModal();
-            }
-            
-            // Échap pour fermer les modales
-            if (e.key === 'Escape') {
-                this.closeSearchModal();
-                this.closeQueueModal();
-            }
+            // Raccourcis clavier désactivés
         });
     }
     
-    // Ouvrir la modale de recherche
+    // Fonction de recherche désactivée
     openSearchModal() {
+        return;
         logger.info('SpotifyPlayer: Ouverture modale recherche');
         
         const modal = document.getElementById('search-modal');
@@ -1238,8 +1211,9 @@ class SpotifyPlayer {
     }
     
     
-    // Ouvrir la modale de queue
+    // Fonction de queue désactivée
     async openQueueModal() {
+        return;
         logger.info('SpotifyPlayer: Ouverture modale queue');
         
         const modal = document.getElementById('queue-modal');
@@ -2488,8 +2462,9 @@ class SpotifyPlayer {
         return shuffled;
     }
 
-    // Mélanger aléatoirement la queue actuelle avec true shuffle
+    // Fonction shuffle désactivée
     async shuffleCurrentQueue() {
+        return;
         logger.info('SpotifyPlayer: Toggle TRUE shuffle mode');
         
         try {
@@ -2589,8 +2564,9 @@ class SpotifyPlayer {
         }
     }
     
-    // Désactiver le true shuffle et revenir à l'ordre original
+    // Fonction désactivée
     async disableTrueShuffle() {
+        return;
         logger.info('SpotifyPlayer: Disabling true shuffle');
         
         try {
