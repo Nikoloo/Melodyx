@@ -37,17 +37,17 @@ const SpotifyAuth = {
         // Configuration pour différents environnements
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             // Pour le développement local, utiliser une URL de test
-            return 'https://melodyx-dev.netlify.app/src/pages/callback';
+            return 'https://melodyx-dev.netlify.app/src/pages/callback.html';
         } else if (hostname.includes('.github.io')) {
             // Pour GitHub Pages - inclure le chemin du repository
             const basePath = pathname.split('/').slice(0, -1).join('/');
-            return `${protocol}//${hostname}${basePath}/src/pages/callback`;
+            return `${protocol}//${hostname}${basePath}/src/pages/callback.html`;
         } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
             // Pour les déploiements de test
-            return `${protocol}//${hostname}/src/pages/callback`;
+            return `${protocol}//${hostname}/src/pages/callback.html`;
         } else {
             // Pour la production
-            return 'https://melodyx.app/src/pages/callback';
+            return 'https://melodyx.app/src/pages/callback.html';
         }
     },
 

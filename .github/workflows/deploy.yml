@@ -69,14 +69,14 @@ jobs:
                   const protocol = window.location.protocol;
                   const pathname = window.location.pathname;
                   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                      return 'https://melodyx-dev.netlify.app/src/pages/callback';
+                      return 'https://melodyx-dev.netlify.app/src/pages/callback.html';
                   } else if (hostname.includes('.github.io')) {
                       const basePath = pathname.split('/').slice(0, -1).join('/');
-                      return `${protocol}//${hostname}${basePath}/src/pages/callback`;
+                      return `${protocol}//${hostname}${basePath}/src/pages/callback.html`;
                   } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
-                      return `${protocol}//${hostname}/src/pages/callback`;
+                      return `${protocol}//${hostname}/src/pages/callback.html`;
                   } else {
-                      return 'https://melodyx.app/src/pages/callback';
+                      return 'https://melodyx.app/src/pages/callback.html';
                   }
               },
               validateConfig() {
