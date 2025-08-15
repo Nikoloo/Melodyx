@@ -134,14 +134,14 @@
                 
                 // Redirection automatique après 2 secondes
                 setTimeout(() => {
-                    window.location.href = '/Melodyx/src/pages/app.html';
+                    window.location.href = './app.html';
                 }, 2000);
 
                 // Bouton de redirection manuelle au cas où
                 setTimeout(() => {
                     manualRedirectBtn.style.display = 'inline-flex';
                     manualRedirectBtn.addEventListener('click', () => {
-                        window.location.href = '/Melodyx/src/pages/app.html';
+                        window.location.href = './app.html';
                     });
                 }, 5000);
 
@@ -161,7 +161,9 @@
                     // Nettoyer le localStorage
                     localStorage.removeItem('spotify_code_verifier');
                     localStorage.removeItem('spotify_state');
-                    window.location.href = '/Melodyx/';
+                    // Rediriger vers la racine du site
+                    const basePath = window.location.pathname.split('/src/')[0];
+                    window.location.href = basePath + '/';
                 });
             }
         });

@@ -174,7 +174,9 @@ const SpotifyAuth = {
             
             // Rediriger vers l'application principale après 2 secondes
             setTimeout(() => {
-                window.location.href = '/Melodyx/src/pages/app.html';
+                // Utiliser un chemin relatif pour la redirection
+                const basePath = window.location.pathname.split('/').slice(0, -2).join('/');
+                window.location.href = basePath + '/app.html';
             }, 2000);
         } else {
             throw new Error(`Erreur HTTP: ${response.status}`);
