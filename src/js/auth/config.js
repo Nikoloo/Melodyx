@@ -37,13 +37,28 @@ const Config = {
     getRedirectUri() {
         const hostname = window.location.hostname;
         const protocol = window.location.protocol;
-        const pathname = window.location.pathname;
         
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             return 'https://melodyx-dev.netlify.app/src/pages/callback.html';
         } else if (hostname.includes('.github.io')) {
-            const basePath = pathname.split('/').slice(0, -1).join('/');
-            return `${protocol}//${hostname}${basePath}/src/pages/callback.html`;
+            // Pour GitHub Pages, construire l'URL correctement
+            // Exemple: https://username.github.io/Melodyx/src/pages/callback.html
+            const pathParts = window.location.pathname.split('/');
+            let repoName = '';
+            
+            // Trouver le nom du repository (premier segment non vide du path)
+            for (let i = 0; i < pathParts.length; i++) {
+                if (pathParts[i] && !pathParts[i].includes('.html')) {
+                    repoName = pathParts[i];
+                    break;
+                }
+            }
+            
+            if (repoName) {
+                return `${protocol}//${hostname}/${repoName}/src/pages/callback.html`;
+            } else {
+                return `${protocol}//${hostname}/src/pages/callback.html`;
+            }
         } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
             return `${protocol}//${hostname}/src/pages/callback.html`;
         } else {

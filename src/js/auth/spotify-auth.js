@@ -90,6 +90,9 @@ const SpotifyAuth = {
 
             // Construire l'URL d'autorisation
             const redirectUri = this.getRedirectUri();
+            console.log('Login - Redirect URI:', redirectUri);
+            console.log('Login - Client ID:', this.config.clientId);
+            
             const authUrl = new URL('https://accounts.spotify.com/authorize');
             authUrl.searchParams.set('client_id', this.config.clientId);
             authUrl.searchParams.set('response_type', this.config.responseType);
@@ -145,15 +148,22 @@ const SpotifyAuth = {
     // Échanger le code d'autorisation contre un token
     async exchangeCodeForToken(code) {
         const codeVerifier = localStorage.getItem('spotify_code_verifier');
+        const redirectUri = this.getRedirectUri();
+        
+        console.log('Exchange token - Redirect URI:', redirectUri);
+        console.log('Exchange token - Client ID:', this.config.clientId);
+        console.log('Exchange token - Code Verifier présent:', !!codeVerifier);
         
         const tokenUrl = 'https://accounts.spotify.com/api/token';
         const payload = new URLSearchParams({
             grant_type: 'authorization_code',
             code: code,
-            redirect_uri: this.getRedirectUri(),
+            redirect_uri: redirectUri,
             client_id: this.config.clientId,
             code_verifier: codeVerifier
         });
+
+        console.log('Token exchange payload:', payload.toString());
 
         const response = await fetch(tokenUrl, {
             method: 'POST',
@@ -179,7 +189,9 @@ const SpotifyAuth = {
                 window.location.href = basePath + '/app.html';
             }, 2000);
         } else {
-            throw new Error(`Erreur HTTP: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Erreur lors de l\'échange du token:', response.status, errorText);
+            throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
         }
     },
 
