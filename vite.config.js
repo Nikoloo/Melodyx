@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import legacy from '@vitejs/plugin-legacy';
 import { resolve } from 'path';
+import { copyFileSync, mkdirSync } from 'fs';
 
 export default defineConfig({
   // Base URL for GitHub Pages (repository name)
@@ -66,7 +67,34 @@ export default defineConfig({
     legacy({
       targets: ['defaults', 'not IE 11'],
       additionalLegacyPolyfills: ['regenerator-runtime/runtime']
-    })
+    }),
+    // Custom plugin to copy JS files
+    {
+      name: 'copy-js-files',
+      writeBundle() {
+        // Create directories
+        mkdirSync('dist/src/js/auth', { recursive: true });
+        mkdirSync('dist/src/js/api', { recursive: true });
+        mkdirSync('dist/src/js/player', { recursive: true });
+        mkdirSync('dist/src/js/ui', { recursive: true });
+        mkdirSync('dist/src/css/base', { recursive: true });
+        mkdirSync('dist/src/css/components', { recursive: true });
+        
+        // Copy JS files
+        copyFileSync('src/js/auth/config.js', 'dist/src/js/auth/config.js');
+        copyFileSync('src/js/auth/spotify-auth.js', 'dist/src/js/auth/spotify-auth.js');
+        copyFileSync('src/js/api/spotify-web-api-service.js', 'dist/src/js/api/spotify-web-api-service.js');
+        copyFileSync('src/js/player/spotify-player.js', 'dist/src/js/player/spotify-player.js');
+        copyFileSync('src/js/player/playlist-selector.js', 'dist/src/js/player/playlist-selector.js');
+        copyFileSync('src/js/player/true-random.js', 'dist/src/js/player/true-random.js');
+        copyFileSync('src/js/ui/script.js', 'dist/src/js/ui/script.js');
+        
+        // Copy CSS files
+        copyFileSync('src/css/base/main.css', 'dist/src/css/base/main.css');
+        copyFileSync('src/css/components/player.css', 'dist/src/css/components/player.css');
+        copyFileSync('src/css/components/playlist-selector.css', 'dist/src/css/components/playlist-selector.css');
+      }
+    }
   ],
   
   // Development server configuration
