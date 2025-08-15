@@ -11,7 +11,12 @@
       "Bash(git push:*)",
       "Bash(mkdir:*)",
       "Bash(mv:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(if exist react-app echo \"Found react-app folder\")",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(touch:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

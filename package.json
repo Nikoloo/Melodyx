@@ -1,1 +1,32 @@
-{}
+{
+  "name": "melodyx",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist",
+    "clean": "rm -rf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nikoloo/Melodyx.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nikoloo/Melodyx/issues"
+  },
+  "homepage": "https://github.com/nikoloo/Melodyx#readme",
+  "description": "",
+  "devDependencies": {
+    "@vitejs/plugin-legacy": "^7.2.1",
+    "dotenv": "^17.2.1",
+    "gh-pages": "^6.3.0",
+    "terser": "^5.43.1",
+    "vite": "^7.1.2"
+  }
+}

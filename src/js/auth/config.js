@@ -4,10 +4,10 @@
 const Config = {
     // Get Spotify Client ID from environment or fallback
     getSpotifyClientId() {
-        // For GitHub Pages deployment with GitHub Actions
-        // The CLIENT_ID will be injected during build time
-        return window.SPOTIFY_CLIENT_ID || 
-               process?.env?.SPOTIFY_CLIENT_ID || 
+        // Vite environment variables are prefixed with VITE_
+        // They are replaced at build time
+        return import.meta.env?.VITE_SPOTIFY_CLIENT_ID || 
+               window.SPOTIFY_CLIENT_ID || 
                '6b0945e253ec4d6d87b5729d1dd946df'; // Fallback for local development only
     },
 

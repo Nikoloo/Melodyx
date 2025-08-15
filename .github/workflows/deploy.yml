@@ -1,137 +1,47 @@
 name: Deploy to GitHub Pages
 
-# Trigger deployment on push to main/master branch
 on:
   push:
-    branches: 
-      - main
-      - master
+    branches: [ main, master ]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
+        
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          npm init -y
-          npm install --save-dev terser html-minifier-terser cssnano postcss postcss-cli
-
-      - name: Inject Spotify Client ID
-        env:
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-        run: |
-          # Create a temporary config file with the injected client ID
-          cat > src/js/auth/config-temp.js << 'EOF'
-          const Config = {
-              getSpotifyClientId() {
-                  return '${{ secrets.SPOTIFY_CLIENT_ID }}' || '6b0945e253ec4d6d87b5729d1dd946df';
-              },
-              getEnvironment() {
-                  const hostname = window.location.hostname;
-                  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                      return 'development';
-                  } else if (hostname.includes('.github.io')) {
-                      return 'github-pages';
-                  } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
-                      return 'staging';
-                  } else {
-                      return 'production';
-                  }
-              },
-              isSecureContext() {
-                  return window.location.protocol === 'https:' || 
-                         window.location.hostname === 'localhost' || 
-                         window.location.hostname === '127.0.0.1';
-              },
-              getRedirectUri() {
-                  const hostname = window.location.hostname;
-                  const protocol = window.location.protocol;
-                  const pathname = window.location.pathname;
-                  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                      return 'https://melodyx-dev.netlify.app/src/pages/callback.html';
-                  } else if (hostname.includes('.github.io')) {
-                      const basePath = pathname.split('/').slice(0, -1).join('/');
-                      return `${protocol}//${hostname}${basePath}/src/pages/callback.html`;
-                  } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
-                      return `${protocol}//${hostname}/src/pages/callback.html`;
-                  } else {
-                      return 'https://melodyx.app/src/pages/callback.html';
-                  }
-              },
-              validateConfig() {
-                  const clientId = this.getSpotifyClientId();
-                  if (!clientId || clientId === 'YOUR_SPOTIFY_CLIENT_ID') {
-                      console.error('Spotify Client ID not configured properly');
-                      return false;
-                  }
-                  if (!this.isSecureContext() && this.getEnvironment() === 'production') {
-                      console.warn('Application should be served over HTTPS in production');
-                  }
-                  return true;
-              }
-          };
-          if (typeof module !== 'undefined' && module.exports) {
-              module.exports = Config;
-          }
-          EOF
           
-          # Replace the config.js file
-          mv src/js/auth/config-temp.js src/js/auth/config.js
-
-      # Skip minification for now - it may break the application
-      # - name: Minify JavaScript files
-      #   run: |
-      #     for file in *.js; do
-      #       if [ -f "$file" ]; then
-      #         npx terser "$file" -o "$file" --compress --mangle || echo "Failed to minify $file"
-      #       fi
-      #     done
-
-      # - name: Minify CSS files
-      #   run: |
-      #     for file in *.css; do
-      #       if [ -f "$file" ]; then
-      #         npx postcss "$file" -o "$file" --use cssnano || echo "Failed to minify $file"
-      #       fi
-      #     done
-
-      # - name: Minify HTML files
-      #   run: |
-      #     for file in *.html; do
-      #       if [ -f "$file" ]; then
-      #         npx html-minifier-terser --collapse-whitespace --remove-comments --minify-js --minify-css "$file" -o "$file" || echo "Failed to minify $file"
-      #       fi
-      #     done
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build with Vite
+        run: npm run build
+        env:
+          VITE_SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          VITE_SPOTIFY_REDIRECT_URI: https://nikoloo.github.io/Melodyx/src/pages/callback.html
+          VITE_APP_ENV: production
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
-
+          path: ./dist
+          
   deploy:
     environment:
       name: github-pages
