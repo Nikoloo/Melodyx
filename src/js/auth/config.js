@@ -40,9 +40,12 @@ const Config = {
         
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             return 'https://melodyx-dev.netlify.app/src/pages/callback.html';
+        } else if (hostname === 'nikoloo.github.io') {
+            // URI ABSOLUE ET FIXE pour GitHub Pages
+            // Cette URI doit correspondre EXACTEMENT à celle dans Spotify Dashboard
+            return 'https://nikoloo.github.io/Melodyx/src/pages/callback.html';
         } else if (hostname.includes('.github.io')) {
-            // Pour GitHub Pages, l'URI doit être fixe et constante
-            // Elle doit correspondre exactement à celle configurée dans Spotify Dashboard
+            // Pour d'autres utilisateurs GitHub Pages
             return `${protocol}//${hostname}/Melodyx/src/pages/callback.html`;
         } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
             return `${protocol}//${hostname}/src/pages/callback.html`;

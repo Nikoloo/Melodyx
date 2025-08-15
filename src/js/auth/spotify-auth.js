@@ -25,23 +25,17 @@ const SpotifyAuth = {
 
     // Obtenir l'URI de redirection selon l'environnement
     getRedirectUri() {
-        // Use Config module if available, otherwise fallback to inline logic
-        if (typeof Config !== 'undefined') {
-            return Config.getRedirectUri();
-        }
-        
         const hostname = window.location.hostname;
         const protocol = window.location.protocol;
-        const pathname = window.location.pathname;
         
         // Configuration pour différents environnements
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             // Pour le développement local, utiliser une URL de test
             return 'https://melodyx-dev.netlify.app/src/pages/callback.html';
         } else if (hostname.includes('.github.io')) {
-            // Pour GitHub Pages - inclure le chemin du repository
-            const basePath = pathname.split('/').slice(0, -1).join('/');
-            return `${protocol}//${hostname}${basePath}/src/pages/callback.html`;
+            // Pour GitHub Pages - URI FIXE et ABSOLUE
+            // Cette URI doit correspondre EXACTEMENT à celle dans Spotify Dashboard
+            return 'https://nikoloo.github.io/Melodyx/src/pages/callback.html';
         } else if (hostname.includes('.vercel.app') || hostname.includes('.netlify.app')) {
             // Pour les déploiements de test
             return `${protocol}//${hostname}/src/pages/callback.html`;
