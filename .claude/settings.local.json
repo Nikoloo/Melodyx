@@ -18,7 +18,8 @@
       "Bash(touch:*)",
       "Bash(npm run build:*)",
       "Bash(git commit:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

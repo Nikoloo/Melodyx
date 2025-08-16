@@ -1079,10 +1079,18 @@ class SpotifyPlayer {
     
     // Attacher les événements de recherche et playlist
     attachSearchAndPlaylistEvents() {
-        // Boutons désactivés - fonctionnalités supprimées
+        // Boutons principaux
         const searchBtn = document.getElementById('search-btn');
         const queueBtn = document.getElementById('queue-btn');
         const trueShuffleBtn = document.getElementById('true-shuffle-btn');
+        
+        // Activer le bouton de recherche
+        if (searchBtn) {
+            searchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openSearchModal();
+            });
+        }
         
         // Fermeture des modales
         const searchCloseBtn = document.getElementById('search-close-btn');
@@ -1160,7 +1168,10 @@ class SpotifyPlayer {
         // Raccourcis clavier
         document.addEventListener('keydown', (e) => {
             // Ctrl+K ou Cmd+K pour ouvrir la recherche
-            // Raccourcis clavier désactivés
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                this.openSearchModal();
+            }
         });
     }
     
@@ -1625,10 +1636,14 @@ class SpotifyPlayer {
     // Initialize filter indicator position
     initializeFilterIndicator() {
         const activeTab = document.querySelector('.premium-filter-tab.active');
-        const filterIndicator = document.querySelector('.filter-indicator');
+        const slider = document.querySelector('.filter-tabs-slider');
         
-        if (activeTab && filterIndicator) {
-            const tabRect = activeTab.getBoundingClientRect();
+        if (activeTab && slider) {
+            const rect = activeTab.getBoundingClientRect();
+            const containerRect = activeTab.parentElement.getBoundingClientRect();
+            
+            slider.style.width = `${rect.width}px`;
+            slider.style.transform = `translateX(${rect.left - containerRect.left}px)`;
             const containerRect = activeTab.parentElement.getBoundingClientRect();
             const left = tabRect.left - containerRect.left;
             const width = tabRect.width;
@@ -1847,10 +1862,22 @@ class SpotifyPlayer {
     
     // Changer le filtre de recherche
     changeSearchFilter(type) {
-        logger.debug('SpotifyPlayer: Changement filtre recherche', { type });
+        logger.info('SpotifyPlayer: Changement de filtre', { type });
         
-        // Mettre à jour l'état
         this.currentSearchType = type;
+        
+        // Update active tab
+        const tabs = document.querySelectorAll('.premium-filter-tab');
+        tabs.forEach(tab => {
+            if (tab.dataset.type === type) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Update slider position
+        this.updateFilterSlider();
         
         // Mettre à jour l'UI
         const filters = document.querySelectorAll('.search-filter, .premium-filter-tab');
@@ -1878,6 +1905,20 @@ class SpotifyPlayer {
             } else {
                 this.showSearchPlaceholder();
             }
+        }
+    }
+    
+    // Update filter slider position
+    updateFilterSlider() {
+        const activeTab = document.querySelector('.premium-filter-tab.active');
+        const slider = document.querySelector('.filter-tabs-slider');
+        
+        if (activeTab && slider) {
+            const rect = activeTab.getBoundingClientRect();
+            const containerRect = activeTab.parentElement.getBoundingClientRect();
+            
+            slider.style.width = `${rect.width}px`;
+            slider.style.transform = `translateX(${rect.left - containerRect.left}px)`;
         }
     }
     
@@ -2014,25 +2055,113 @@ class SpotifyPlayer {
     
     // Afficher le placeholder de recherche
     showSearchPlaceholder() {
+        const emptyState = document.querySelector('.search-empty-state');
+        const noResultsState = document.getElementById('search-no-results');
+        const loadingState = document.getElementById('search-loading');
+        const resultsContainer = document.getElementById('search-results-container');
         const searchResultsList = document.getElementById('search-results-list');
-        const searchPlaceholder = document.querySelector('.search-placeholder');
         
+        // Hide all other states
+        if (noResultsState) noResultsState.style.display = 'none';
+        if (loadingState) loadingState.style.display = 'none';
+        if (resultsContainer) resultsContainer.style.display = 'none';
         if (searchResultsList) {
             searchResultsList.innerHTML = '';
+            searchResultsList.style.display = 'none';
         }
         
-        if (searchPlaceholder) {
-            searchPlaceholder.style.display = 'block';
+        // Show empty state
+        if (emptyState) {
+            emptyState.style.display = 'flex';
+        }
+    }
+    
+    // Load user's playlists for search modal
+    async loadUserPlaylistsForSearch() {
+        logger.info('SpotifyPlayer: Loading user playlists for search');
+        
+        this.showSearchLoading(true);
+        
+        try {
+            const token = await SpotifyAuth.getValidAccessToken();
+            const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) throw new Error('Failed to load playlists');
+            
+            const data = await response.json();
+            
+            // Format playlists as search results
+            const formattedResults = {
+                playlists: {
+                    items: data.items
+                }
+            };
+            
+            this.currentSearchType = 'playlist';
+            this.displaySearchResults(formattedResults);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Error loading user playlists', error);
+            this.showSearchError('Could not load your playlists');
+        } finally {
+            this.showSearchLoading(false);
+        }
+    }
+    
+    // Load user's liked tracks for search modal
+    async loadLikedTracksForSearch() {
+        logger.info('SpotifyPlayer: Loading liked tracks for search');
+        
+        this.showSearchLoading(true);
+        
+        try {
+            const token = await SpotifyAuth.getValidAccessToken();
+            const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) throw new Error('Failed to load liked tracks');
+            
+            const data = await response.json();
+            
+            // Format liked tracks as search results
+            const formattedResults = {
+                tracks: {
+                    items: data.items.map(item => item.track)
+                }
+            };
+            
+            this.currentSearchType = 'track';
+            this.displaySearchResults(formattedResults);
+            
+        } catch (error) {
+            logger.error('SpotifyPlayer: Error loading liked tracks', error);
+            this.showSearchError('Could not load your liked tracks');
+        } finally {
+            this.showSearchLoading(false);
         }
     }
     
     // Afficher/masquer le loading de recherche
     showSearchLoading(show) {
-        const searchLoading = document.getElementById('search-loading');
-        const searchPlaceholder = document.querySelector('.search-placeholder');
+        const loadingState = document.getElementById('search-loading');
+        const emptyState = document.querySelector('.search-empty-state');
+        const noResultsState = document.getElementById('search-no-results');
+        const resultsContainer = document.getElementById('search-results-container');
         
-        if (searchLoading) {
-            searchLoading.style.display = show ? 'block' : 'none';
+        if (show) {
+            // Hide all other states
+            if (emptyState) emptyState.style.display = 'none';
+            if (noResultsState) noResultsState.style.display = 'none';
+            if (resultsContainer) resultsContainer.style.display = 'none';
+            
+            // Show loading
+            if (loadingState) loadingState.style.display = 'flex';
+        } else {
+            // Hide loading
+            if (loadingState) loadingState.style.display = 'none';
         }
         
         if (searchPlaceholder) {
