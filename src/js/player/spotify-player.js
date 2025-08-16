@@ -1644,8 +1644,8 @@ class SpotifyPlayer {
             
             slider.style.width = `${rect.width}px`;
             slider.style.transform = `translateX(${rect.left - containerRect.left}px)`;
-            const containerRect = activeTab.parentElement.getBoundingClientRect();
-            const left = tabRect.left - containerRect.left;
+            const tabParentRect = activeTab.parentElement.getBoundingClientRect();
+            const left = tabRect.left - tabParentRect.left;
             const width = tabRect.width;
             
             filterIndicator.style.transform = `translateX(${left}px)`;
