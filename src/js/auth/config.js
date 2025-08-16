@@ -75,3 +75,6 @@ const Config = {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Config;
 }
+
+// Make available globally for non-module scripts
+window.Config = Config;

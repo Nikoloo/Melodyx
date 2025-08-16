@@ -481,3 +481,6 @@ const modalStyles = `
 const styleSheet = document.createElement('style');
 styleSheet.textContent = modalStyles;
 document.head.appendChild(styleSheet);
+
+// Make SpotifyAuth available globally
+window.SpotifyAuth = SpotifyAuth;

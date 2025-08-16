@@ -507,6 +507,12 @@ class PlaylistSelector {
 // Instance globale
 const playlistSelector = new PlaylistSelector();
 
+// Make available globally
+window.playlistSelector = playlistSelector;
+window.PlaylistSelector = PlaylistSelector;
+window.openPlaylistSelector = openPlaylistSelector;
+window.initializePlaylistSelectorPage = initializePlaylistSelectorPage;
+
 // Fonction appelée par le bouton
 function openPlaylistSelector() {
     // Rediriger vers la page de sélection de playlist

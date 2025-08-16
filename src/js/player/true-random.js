@@ -506,3 +506,7 @@ class TrueRandomMode {
 
 // Instance globale
 const trueRandomMode = new TrueRandomMode();
+
+// Make available globally
+window.trueRandomMode = trueRandomMode;
+window.TrueRandomMode = TrueRandomMode;
