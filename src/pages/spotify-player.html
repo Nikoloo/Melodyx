@@ -321,10 +321,27 @@
     <script type="module" src="../js/auth/spotify-auth.js"></script>
     <script type="module" src="../js/api/spotify-web-api-service.js"></script>
     <script type="module" src="../js/player/spotify-player.js"></script>
-    <script>
+    <script type="module">
+        // Wait for global objects to be available
+        function waitForGlobals() {
+            return new Promise((resolve) => {
+                const checkGlobals = () => {
+                    if (window.SpotifyAuth && window.SpotifyPlayer && window.logger) {
+                        resolve();
+                    } else {
+                        setTimeout(checkGlobals, 50);
+                    }
+                };
+                checkGlobals();
+            });
+        }
+
         // Vérifier l'authentification au chargement
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!SpotifyAuth.isLoggedIn()) {
+            // Wait for modules to load
+            await waitForGlobals();
+            
+            if (!window.SpotifyAuth.isLoggedIn()) {
                 // Rediriger vers la page d'accueil si pas connecté
                 window.location.href = '/Melodyx/';
                 return;
@@ -337,15 +354,15 @@
         // Fonction pour initialiser le lecteur
         async function initializeSpotifyPlayer() {
             try {
-                logger.info('HTML: Initialisation du lecteur Spotify');
+                window.logger.info('HTML: Initialisation du lecteur Spotify');
                 
                 // Créer l'instance globale
-                window.spotifyPlayer = new SpotifyPlayer();
+                window.spotifyPlayer = new window.SpotifyPlayer();
                 await window.spotifyPlayer.initialize();
                 
-                logger.info('HTML: Lecteur initialisé avec succès');
+                window.logger.info('HTML: Lecteur initialisé avec succès');
             } catch (error) {
-                logger.error('HTML: Erreur lors de l\'initialisation', error);
+                window.logger.error('HTML: Erreur lors de l\'initialisation', error);
                 showError(error.message || 'Impossible d\'initialiser le lecteur Spotify');
             }
         }

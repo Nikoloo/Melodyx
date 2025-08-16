@@ -167,17 +167,34 @@
     <script type="module" src="../js/auth/spotify-auth.js"></script>
     <script type="module" src="../js/player/true-random.js"></script>
     <script type="module" src="../js/player/playlist-selector.js"></script>
-    <script>
+    <script type="module">
+        // Wait for global objects to be available
+        function waitForGlobals() {
+            return new Promise((resolve) => {
+                const checkGlobals = () => {
+                    if (window.SpotifyAuth && window.playlistSelector) {
+                        resolve();
+                    } else {
+                        setTimeout(checkGlobals, 50);
+                    }
+                };
+                checkGlobals();
+            });
+        }
+        
         // Vérifier l'authentification au chargement
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!SpotifyAuth.isLoggedIn()) {
+            // Wait for modules to load
+            await waitForGlobals();
+            
+            if (!window.SpotifyAuth.isLoggedIn()) {
                 // Rediriger vers la page d'accueil si pas connecté
                 window.location.href = '/Melodyx/';
                 return;
             }
 
             // Initialiser le sélecteur de playlist en mode page
-            await initializePlaylistSelectorPage();
+            await window.initializePlaylistSelectorPage();
         });
 
         // Fonction pour initialiser le sélecteur en mode page
@@ -187,13 +204,13 @@
                 const container = document.getElementById('playlist-container');
                 
                 // Utiliser l'instance globale du sélecteur
-                await playlistSelector.fetchUserPlaylists();
+                await window.playlistSelector.fetchUserPlaylists();
                 
                 // Afficher le sélecteur directement dans le container
-                container.innerHTML = playlistSelector.generatePlaylistSelectorHTML();
+                container.innerHTML = window.playlistSelector.generatePlaylistSelectorHTML();
                 
                 // Initialiser les événements
-                playlistSelector.initializePageEvents();
+                window.playlistSelector.initializePageEvents();
                 
             } catch (error) {
                 console.error('Erreur lors de l\'initialisation:', error);

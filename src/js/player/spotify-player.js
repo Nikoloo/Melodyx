@@ -2872,3 +2872,8 @@ window.onSpotifyWebPlaybackSDKReady = () => {
 
 // Instance globale du lecteur
 let spotifyPlayer = null;
+
+// Export globals for module usage
+window.SpotifyPlayer = SpotifyPlayer;
+window.logger = logger;
+window.spotifyPlayer = spotifyPlayer;

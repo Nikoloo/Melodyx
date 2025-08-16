@@ -92,9 +92,25 @@
 
     <script type="module" src="../js/auth/config.js"></script>
     <script type="module" src="../js/auth/spotify-auth.js"></script>
-    <script>
+    <script type="module">
+        // Wait for global objects to be available
+        function waitForGlobals() {
+            return new Promise((resolve) => {
+                const checkGlobals = () => {
+                    if (window.SpotifyAuth) {
+                        resolve();
+                    } else {
+                        setTimeout(checkGlobals, 50);
+                    }
+                };
+                checkGlobals();
+            });
+        }
+        
         // Gérer le processus de callback
         document.addEventListener('DOMContentLoaded', async () => {
+            // Wait for modules to load
+            await waitForGlobals();
             const messageDiv = document.getElementById('callback-message');
             const manualRedirectBtn = document.getElementById('manual-redirect');
             const spinner = document.querySelector('.callback-spinner');
@@ -123,7 +139,7 @@
                 }
 
                 // Échanger le code contre un token
-                await SpotifyAuth.exchangeCodeForToken(code);
+                await window.SpotifyAuth.exchangeCodeForToken(code);
 
                 // Succès
                 spinner.style.display = 'none';
